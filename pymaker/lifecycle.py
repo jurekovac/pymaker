@@ -324,29 +324,37 @@ class Lifecycle:
 
     def _start_watching_blocks(self):
         def new_block_callback(block_hash):
-            self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
-            block = self.web3.eth.getBlock(block_hash)
-            block_number = block['number']
-            if not self.web3.eth.syncing:
-                max_block_number = self.web3.eth.blockNumber
-                if block_number >= max_block_number:
-                    def on_start():
-                        self.logger.debug(f"Processing block #{block_number} ({block_hash.hex()})")
+            try:
+                self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
+                block = self.web3.eth.getBlock(block_hash)
+                block_number = block['number']
+                # print(f"new_block: {block_number}")
+                if not self.web3.eth.syncing:
+                    max_block_number = self.web3.eth.blockNumber
+                    if block_number >= max_block_number:
+                        def on_start():
+                            self.logger.debug(f"Processing block #{block_number} ({block_hash.hex()})")
 
-                    def on_finish():
-                        self.logger.debug(f"Finished processing block #{block_number} ({block_hash.hex()})")
+                        def on_finish():
+                            self.logger.debug(f"Finished processing block #{block_number} ({block_hash.hex()})")
 
-                    if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
-                        if not self._on_block_callback.trigger(on_start, on_finish):
-                            self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
-                                              f" as previous callback is still running")
+                        if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
+                            if not self._on_block_callback.trigger(on_start, on_finish):
+                                self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
+                                                  f" as previous callback is still running")
+                            self._on_block_callback.wait()
+                        else:
+                            self.logger.debug(f"Ignoring block #{block_number} as keeper is already terminating")
                     else:
-                        self.logger.debug(f"Ignoring block #{block_number} as keeper is already terminating")
+                        self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
+                                          f" as there is already block #{max_block_number} available")
                 else:
-                    self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
-                                      f" as there is already block #{max_block_number} available")
-            else:
-                self.logger.info(f"Ignoring block #{block_number} ({block_hash.hex()}), as the node is syncing")
+                    self.logger.info(f"Ignoring block #{block_number} ({block_hash.hex()}), as the node is syncing")
+            except Exception as err:
+                print(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
+                self.logger.warning(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
+
+                # print(f"new_block: {block_number} end")
 
         def new_block_watch():
             event_filter = self.web3.eth.filter('latest')
@@ -356,7 +364,12 @@ class Lifecycle:
                     for event in event_filter.get_new_entries():
                         new_block_callback(event)
                 except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
+                    print(f"Node dropped event emitter; recreating latest block filter: {ex}")
                     self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {ex}")
+                    event_filter = self.web3.eth.filter('latest')
+                except Exception as err:
+                    print(f"Node dropped event emitter; recreating latest block filter: {err}")
+                    self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {err}")
                     event_filter = self.web3.eth.filter('latest')
                 finally:
                     time.sleep(1)
@@ -458,8 +471,8 @@ class Lifecycle:
 
     def _main_loop(self):
         # terminate gracefully on either SIGINT or SIGTERM
-        signal.signal(signal.SIGINT, self._sigint_sigterm_handler)
-        signal.signal(signal.SIGTERM, self._sigint_sigterm_handler)
+        # signal.signal(signal.SIGINT, self._sigint_sigterm_handler)
+        # signal.signal(signal.SIGTERM, self._sigint_sigterm_handler)
 
         # in case at least one filter has been set up, we enter an infinite loop and let
         # the callbacks do the job. in case of no filters, we will not enter this loop
