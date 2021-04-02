@@ -186,7 +186,7 @@ class Lifecycle:
             self.shutdown_function()
             self.logger.info("Shutdown logic finished")
         self.logger.info("Keeper terminated")
-        exit(10 if self.fatal_termination else 0)
+        # exit(10 if self.fatal_termination else 0)
 
     def _wait_for_init(self):
         # In unit-tests waiting for the node to sync does not work correctly.
@@ -195,17 +195,29 @@ class Lifecycle:
             return
 
         # wait for the client to have at least one peer
-        if self.web3.net.peer_count == 0:
-            self.logger.info(f"Waiting for the node to have at least one peer...")
-            while self.web3.net.peer_count == 0:
-                time.sleep(0.25)
+        try:
+            if self.web3.net.peer_count == 0:
+                self.logger.info(f"Waiting for the node to have at least one peer...")
+                while self.web3.net.peer_count == 0:
+                    time.sleep(0.25)
+        except Exception as err:
+            if 'unauthorized method' in str(err).lower():
+                pass
+            else:
+                raise err
 
         # wait for the client to sync completely,
         # as we do not want to apply keeper logic to stale blocks
-        if self.web3.eth.syncing:
-            self.logger.info(f"Waiting for the node to sync...")
-            while self.web3.eth.syncing:
-                time.sleep(0.25)
+        try:
+            if self.web3.eth.syncing:
+                self.logger.info(f"Waiting for the node to sync...")
+                while self.web3.eth.syncing:
+                    time.sleep(0.25)
+        except Exception as err:
+            if 'unauthorized method' in str(err).lower():
+                pass
+            else:
+                raise err
 
     def _check_account_unlocked(self):
         try:
@@ -351,28 +363,35 @@ class Lifecycle:
                 else:
                     self.logger.info(f"Ignoring block #{block_number} ({block_hash.hex()}), as the node is syncing")
             except Exception as err:
-                print(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
+                # print(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
                 self.logger.warning(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
 
                 # print(f"new_block: {block_number} end")
 
         def new_block_watch():
             event_filter = self.web3.eth.filter('latest')
-            logging.debug(f"Created event filter: {event_filter}")
+            self.logger.debug(f"Created event filter: {event_filter}")
             while True:
+                if self.terminated_internally or self.terminated_externally:
+                    break
+
                 try:
                     for event in event_filter.get_new_entries():
                         new_block_callback(event)
                 except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
-                    print(f"Node dropped event emitter; recreating latest block filter: {ex}")
-                    self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {ex}")
+                    # print(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
+                    self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
                     event_filter = self.web3.eth.filter('latest')
+                    time.sleep(0.5)
                 except Exception as err:
-                    print(f"Node dropped event emitter; recreating latest block filter: {err}")
-                    self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {err}")
-                    event_filter = self.web3.eth.filter('latest')
+                    self.logger.error(f"Lifecycle Exception: {err}")
+                    self.terminated_internally = True
+                    break
+
+                    # self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {err}")
+                    # kevent_filter = self.web3.eth.filter('latest')
                 finally:
-                    time.sleep(1)
+                    time.sleep(0.05)
 
         if self.block_function:
             self._on_block_callback = AsyncCallback(self.block_function)
@@ -513,3 +532,4 @@ class Lifecycle:
                     self.logger.fatal("No new blocks received for 300 seconds, the keeper will terminate")
                     self.fatal_termination = True
                     break
+        self.logger.warning("Keeper logic ended main loop")
