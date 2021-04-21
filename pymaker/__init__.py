@@ -457,6 +457,12 @@ class Transact:
         self.gas_price_last = 0
         self.tx_hashes = []
 
+    def set_web3(self, web3: Web3):
+        assert(isinstance(web3, Web3))
+        self.web3 = web3
+        if self.contract is not None:
+            self.contract.web3 = web3
+
     def _get_receipt(self, transaction_hash: str) -> Optional[Receipt]:
         try:
             raw_receipt = self.web3.eth.getTransactionReceipt(transaction_hash)
