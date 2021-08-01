@@ -36,6 +36,7 @@ from web3 import HTTPProvider, Web3
 from web3._utils.contracts import get_function_info, encode_abi
 from web3._utils.events import get_event_data
 from web3.exceptions import TransactionNotFound
+from web3.middleware import geth_poa_middleware
 
 from eth_abi.codec import ABICodec
 from eth_abi.registry import registry as default_registry
@@ -61,7 +62,11 @@ def web3_via_http(endpoint_uri: str, timeout=60, http_pool_size=20):
         session.mount('https://', adapter)
     else:
         raise ValueError("Unsupported protocol")
-    return Web3(HTTPProvider(endpoint_uri=endpoint_uri, request_kwargs={"timeout": timeout}, session=session))
+
+    web3 = Web3(HTTPProvider(endpoint_uri=endpoint_uri, request_kwargs={"timeout": timeout}, session=session))
+    if web3.net.version == "5":  # goerli
+        web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+    return web3
 
 
 class NonceCalculation(Enum):
@@ -153,6 +158,10 @@ class Address:
             self.address = address.address
         else:
             self.address = eth_utils.to_checksum_address(address)
+
+    @staticmethod
+    def zero():
+        return Address("0x0000000000000000000000000000000000000000")
 
     def as_bytes(self) -> bytes:
         """Return the address as a 20-byte bytes array."""

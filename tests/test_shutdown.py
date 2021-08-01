@@ -20,9 +20,8 @@ import pytest
 from datetime import datetime, timedelta
 
 from pymaker import Address
-from pymaker.approval import directly, hope_directly
-from pymaker.deployment import DssDeployment
-from pymaker.dss import Collateral
+from pymaker.approval import directly
+from pymaker.deployment import Collateral, DssDeployment
 from pymaker.numeric import Wad, Ray, Rad
 from pymaker.shutdown import ShutdownModule, End
 
@@ -39,9 +38,9 @@ def open_cdp(mcd: DssDeployment, collateral: Collateral, address: Address):
     collateral.approve(address)
     wrap_eth(mcd, address, Wad.from_number(10))
     assert collateral.adapter.join(address, Wad.from_number(10)).transact(from_address=address)
-    frob(mcd, collateral, address, Wad.from_number(10), Wad.from_number(15))
+    frob(mcd, collateral, address, Wad.from_number(10), Wad.from_number(20))
 
-    assert mcd.vat.debt() >= Rad(Wad.from_number(15))
+    assert mcd.vat.debt() >= Rad(Wad.from_number(20))
     assert mcd.vat.dai(address) >= Rad.from_number(10)
 
 
@@ -76,7 +75,7 @@ class TestShutdownModule:
         assert isinstance(mcd.esm.address, Address)
         assert mcd.esm.sum() == Wad(0)
         assert mcd.esm.min() > Wad(0)
-        assert not mcd.esm.fired()
+        assert mcd.end.live()
 
         joy = mcd.vat.dai(mcd.vow.address)
         awe = mcd.vat.sin(mcd.vow.address)
@@ -105,10 +104,8 @@ class TestShutdownModule:
 
     def test_fire(self, mcd, our_address):
         open_cdp(mcd, mcd.collaterals['ETH-A'], our_address)
-
         assert mcd.end.live()
         assert mcd.esm.fire().transact()
-        assert mcd.esm.fired()
         assert not mcd.end.live()
 
 
