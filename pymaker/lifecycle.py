@@ -88,6 +88,7 @@ class Lifecycle:
         self.block_function = None
         self.every_timers = []
         self.event_timers = []
+        self.ignore_peer = False
 
         self.terminated_internally = False
         self.terminated_externally = False
@@ -198,7 +199,7 @@ class Lifecycle:
         try:
             if self.web3.net.peer_count == 0:
                 self.logger.info(f"Waiting for the node to have at least one peer...")
-                while self.web3.net.peer_count == 0:
+                while not self.ignore_peer and self.web3.net.peer_count == 0:
                     time.sleep(0.25)
         except Exception as err:
             if 'unauthorized method' in str(err).lower():
