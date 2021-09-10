@@ -89,6 +89,7 @@ class Lifecycle:
         self.every_timers = []
         self.event_timers = []
         self.ignore_peer = False
+        self.new_block_callback_use_latest = False
 
         self.terminated_internally = False
         self.terminated_externally = False
@@ -377,6 +378,8 @@ class Lifecycle:
                     break
 
                 try:
+                    if self.new_block_callback_use_latest:
+                        new_block_callback(self.web3.eth.getBlock('latest').hash)
                     for event in event_filter.get_new_entries():
                         new_block_callback(event)
                 except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
