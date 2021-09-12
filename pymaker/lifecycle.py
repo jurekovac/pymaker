@@ -380,8 +380,9 @@ class Lifecycle:
                 try:
                     if self.new_block_callback_use_latest:
                         new_block_callback(self.web3.eth.getBlock('latest').hash)
-                    for event in event_filter.get_new_entries():
-                        new_block_callback(event)
+                    else:
+                        for event in event_filter.get_new_entries():
+                            new_block_callback(event)
                 except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
                     # print(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
                     self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
