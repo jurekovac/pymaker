@@ -88,7 +88,8 @@ class Lifecycle:
         self.block_function = None
         self.every_timers = []
         self.event_timers = []
-        self.ignore_peer = False
+        self.skip_peer_check = False
+        self.skip_syncing_check = False
         self.new_block_callback_use_latest = False
 
         self.terminated_internally = False
@@ -197,29 +198,31 @@ class Lifecycle:
             return
 
         # wait for the client to have at least one peer
-        try:
-            if self.web3.net.peer_count == 0:
-                self.logger.info(f"Waiting for the node to have at least one peer...")
-                while not self.ignore_peer and self.web3.net.peer_count == 0:
-                    time.sleep(0.25)
-        except Exception as err:
-            if 'unauthorized method' in str(err).lower():
-                pass
-            else:
-                raise err
+        if not self.skip_peer_check:
+            try:
+                if self.web3.net.peer_count == 0:
+                    self.logger.info(f"Waiting for the node to have at least one peer...")
+                    while self.web3.net.peer_count == 0:
+                        time.sleep(0.25)
+            except Exception as err:
+                if 'unauthorized method' in str(err).lower():
+                    pass
+                else:
+                    raise err
 
         # wait for the client to sync completely,
         # as we do not want to apply keeper logic to stale blocks
-        try:
-            if self.web3.eth.syncing:
-                self.logger.info(f"Waiting for the node to sync...")
-                while self.web3.eth.syncing:
-                    time.sleep(0.25)
-        except Exception as err:
-            if 'unauthorized method' in str(err).lower():
-                pass
-            else:
-                raise err
+        if not self.skip_syncing_check:
+            try:
+                if self.web3.eth.syncing:
+                    self.logger.info(f"Waiting for the node to sync...")
+                    while self.web3.eth.syncing:
+                        time.sleep(0.25)
+            except Exception as err:
+                if 'unauthorized method' in str(err).lower():
+                    pass
+                else:
+                    raise err
 
     def _check_account_unlocked(self):
         try:
@@ -343,7 +346,12 @@ class Lifecycle:
                 block = self.web3.eth.getBlock(block_hash)
                 block_number = block['number']
                 # print(f"new_block: {block_number}")
-                if not self.web3.eth.syncing:
+                if self.skip_syncing_check:
+                    is_syncing = False
+                else:
+                    is_syncing = self.web3.eth.syncing
+
+                if not is_syncing:
                     max_block_number = self.web3.eth.blockNumber
                     if block_number >= max_block_number:
                         def on_start():
@@ -533,7 +541,12 @@ class Lifecycle:
             # TODO the same thing could possibly happen if we watch any event other than
             # TODO a new block. if that happens, we have no reliable way of detecting it now.
             if self._last_block_time and (datetime.datetime.now(tz=pytz.UTC) - self._last_block_time).total_seconds() > 300:
-                if not self.web3.eth.syncing:
+                if self.skip_syncing_check:
+                    is_syncing = False
+                else:
+                    is_syncing = self.web3.eth.syncing
+
+                if not is_syncing:
                     self.logger.fatal("No new blocks received for 300 seconds, the keeper will terminate")
                     self.fatal_termination = True
                     break
