@@ -341,6 +341,7 @@ class Lifecycle:
 
     def _start_watching_blocks(self):
         def new_block_callback(block_hash):
+            block_number = None
             try:
                 self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
                 block = self.web3.eth.getBlock(block_hash)
