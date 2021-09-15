@@ -88,6 +88,9 @@ class Lifecycle:
         self.block_function = None
         self.every_timers = []
         self.event_timers = []
+        self.skip_peer_check = False
+        self.skip_syncing_check = False
+        self.new_block_callback_use_latest = False
 
         self.terminated_internally = False
         self.terminated_externally = False
@@ -186,7 +189,7 @@ class Lifecycle:
             self.shutdown_function()
             self.logger.info("Shutdown logic finished")
         self.logger.info("Keeper terminated")
-        exit(10 if self.fatal_termination else 0)
+        # exit(10 if self.fatal_termination else 0)
 
     def _wait_for_init(self):
         # In unit-tests waiting for the node to sync does not work correctly.
@@ -195,17 +198,31 @@ class Lifecycle:
             return
 
         # wait for the client to have at least one peer
-        if self.web3.net.peer_count == 0:
-            self.logger.info(f"Waiting for the node to have at least one peer...")
-            while self.web3.net.peer_count == 0:
-                time.sleep(0.25)
+        if not self.skip_peer_check:
+            try:
+                if self.web3.net.peer_count == 0:
+                    self.logger.info(f"Waiting for the node to have at least one peer...")
+                    while self.web3.net.peer_count == 0:
+                        time.sleep(0.25)
+            except Exception as err:
+                if 'unauthorized method' in str(err).lower():
+                    pass
+                else:
+                    raise err
 
         # wait for the client to sync completely,
         # as we do not want to apply keeper logic to stale blocks
-        if self.web3.eth.syncing:
-            self.logger.info(f"Waiting for the node to sync...")
-            while self.web3.eth.syncing:
-                time.sleep(0.25)
+        if not self.skip_syncing_check:
+            try:
+                if self.web3.eth.syncing:
+                    self.logger.info(f"Waiting for the node to sync...")
+                    while self.web3.eth.syncing:
+                        time.sleep(0.25)
+            except Exception as err:
+                if 'unauthorized method' in str(err).lower():
+                    pass
+                else:
+                    raise err
 
     def _check_account_unlocked(self):
         try:
@@ -324,42 +341,71 @@ class Lifecycle:
 
     def _start_watching_blocks(self):
         def new_block_callback(block_hash):
-            self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
-            block = self.web3.eth.getBlock(block_hash)
-            block_number = block['number']
-            if not self.web3.eth.syncing:
-                max_block_number = self.web3.eth.blockNumber
-                if block_number >= max_block_number:
-                    def on_start():
-                        self.logger.debug(f"Processing block #{block_number} ({block_hash.hex()})")
-
-                    def on_finish():
-                        self.logger.debug(f"Finished processing block #{block_number} ({block_hash.hex()})")
-
-                    if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
-                        if not self._on_block_callback.trigger(on_start, on_finish):
-                            self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
-                                              f" as previous callback is still running")
-                    else:
-                        self.logger.debug(f"Ignoring block #{block_number} as keeper is already terminating")
+            block_number = None
+            try:
+                self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
+                block = self.web3.eth.getBlock(block_hash)
+                block_number = block['number']
+                # print(f"new_block: {block_number}")
+                if self.skip_syncing_check:
+                    is_syncing = False
                 else:
-                    self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
-                                      f" as there is already block #{max_block_number} available")
-            else:
-                self.logger.info(f"Ignoring block #{block_number} ({block_hash.hex()}), as the node is syncing")
+                    is_syncing = self.web3.eth.syncing
+
+                if not is_syncing:
+                    max_block_number = self.web3.eth.blockNumber
+                    if block_number >= max_block_number:
+                        def on_start():
+                            self.logger.debug(f"Processing block #{block_number} ({block_hash.hex()})")
+
+                        def on_finish():
+                            self.logger.debug(f"Finished processing block #{block_number} ({block_hash.hex()})")
+
+                        if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
+                            if not self._on_block_callback.trigger(on_start, on_finish):
+                                self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
+                                                  f" as previous callback is still running")
+                            self._on_block_callback.wait()
+                        else:
+                            self.logger.debug(f"Ignoring block #{block_number} as keeper is already terminating")
+                    else:
+                        self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
+                                          f" as there is already block #{max_block_number} available")
+                else:
+                    self.logger.info(f"Ignoring block #{block_number} ({block_hash.hex()}), as the node is syncing")
+            except Exception as err:
+                # print(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
+                self.logger.warning(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
+
+                # print(f"new_block: {block_number} end")
 
         def new_block_watch():
             event_filter = self.web3.eth.filter('latest')
-            logging.debug(f"Created event filter: {event_filter}")
+            self.logger.debug(f"Created event filter: {event_filter}")
             while True:
+                if self.terminated_internally or self.terminated_externally:
+                    break
+
                 try:
-                    for event in event_filter.get_new_entries():
-                        new_block_callback(event)
+                    if self.new_block_callback_use_latest:
+                        new_block_callback(self.web3.eth.getBlock('latest').hash)
+                    else:
+                        for event in event_filter.get_new_entries():
+                            new_block_callback(event)
                 except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
-                    self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {ex}")
+                    # print(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
+                    self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
                     event_filter = self.web3.eth.filter('latest')
+                    time.sleep(0.5)
+                except Exception as err:
+                    self.logger.error(f"Lifecycle Exception: {err}")
+                    self.terminated_internally = True
+                    break
+
+                    # self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {err}")
+                    # kevent_filter = self.web3.eth.filter('latest')
                 finally:
-                    time.sleep(1)
+                    time.sleep(0.05)
 
         if self.block_function:
             self._on_block_callback = AsyncCallback(self.block_function)
@@ -458,8 +504,8 @@ class Lifecycle:
 
     def _main_loop(self):
         # terminate gracefully on either SIGINT or SIGTERM
-        signal.signal(signal.SIGINT, self._sigint_sigterm_handler)
-        signal.signal(signal.SIGTERM, self._sigint_sigterm_handler)
+        # signal.signal(signal.SIGINT, self._sigint_sigterm_handler)
+        # signal.signal(signal.SIGTERM, self._sigint_sigterm_handler)
 
         # in case at least one filter has been set up, we enter an infinite loop and let
         # the callbacks do the job. in case of no filters, we will not enter this loop
@@ -496,7 +542,13 @@ class Lifecycle:
             # TODO the same thing could possibly happen if we watch any event other than
             # TODO a new block. if that happens, we have no reliable way of detecting it now.
             if self._last_block_time and (datetime.datetime.now(tz=pytz.UTC) - self._last_block_time).total_seconds() > 300:
-                if not self.web3.eth.syncing:
+                if self.skip_syncing_check:
+                    is_syncing = False
+                else:
+                    is_syncing = self.web3.eth.syncing
+
+                if not is_syncing:
                     self.logger.fatal("No new blocks received for 300 seconds, the keeper will terminate")
                     self.fatal_termination = True
                     break
+        self.logger.warning("Keeper logic ended main loop")

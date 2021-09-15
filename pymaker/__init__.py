@@ -46,6 +46,8 @@ from pymaker.gas import DefaultGasPrice, GasPrice
 from pymaker.numeric import Wad
 from pymaker.util import synchronize, bytes_to_hexstring, is_contract_at
 
+_registered_accounts = {}
+
 filter_threads = []
 nonce_calc = WeakKeyDictionary()
 next_nonce = {}
@@ -486,6 +488,12 @@ class Transact:
         self.gas_price_last = 0
         self.tx_hashes = []
 
+    def set_web3(self, web3: Web3):
+        assert(isinstance(web3, Web3))
+        self.web3 = web3
+        if self.contract is not None:
+            self.contract.web3 = web3
+
     def _get_receipt(self, transaction_hash: str) -> Optional[Receipt]:
         try:
             raw_receipt = self.web3.eth.getTransactionReceipt(transaction_hash)
@@ -514,7 +522,7 @@ class Transact:
         else:
             return gas_estimate + 100000
 
-    def _func(self, from_account: str, gas: int, gas_price: Optional[int], nonce: Optional[int]):
+    def _func(self, from_account: str, gas: int, gas_price: Optional[int], nonce: Optional[int], send_raw: bool = False):
         gas_price_dict = {'gasPrice': gas_price} if gas_price is not None else {}
         nonce_dict = {'nonce': nonce} if nonce is not None else {}
 
@@ -530,7 +538,14 @@ class Transact:
                                                                          **{'to': self.address.address,
                                                                             'data': self.parameters[0]}}))
             else:
-                return bytes_to_hexstring(self._contract_function().transact(transaction_params))
+                # TODO: implement raw_send for other if cases - required by optimism
+                if send_raw:
+                    prepared_transaction = self._contract_function().buildTransaction(transaction_params)
+                    local_account = _registered_accounts.get((self.web3, Address(from_account)))
+                    signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, local_account.privateKey)
+                    return bytes_to_hexstring(self.web3.eth.sendRawTransaction(signed_txn.rawTransaction))
+                else:
+                    return bytes_to_hexstring(self._contract_function().transact(transaction_params))
         else:
             return bytes_to_hexstring(self.web3.eth.sendTransaction({**transaction_params,
                                                                      **{'to': self.address.address}}))
@@ -638,11 +653,15 @@ class Transact:
             invocation was successful, or `None` if it failed.
         """
 
+
         global next_nonce
         self.initial_time = time.time()
-        unknown_kwargs = set(kwargs.keys()) - {'from_address', 'replace', 'gas', 'gas_buffer', 'gas_price'}
+        unknown_kwargs = set(kwargs.keys()) - {'from_address', 'replace', 'gas', 'gas_buffer', 'gas_price', 'send_raw'}
         if len(unknown_kwargs) > 0:
             raise ValueError(f"Unknown kwargs: {unknown_kwargs}")
+
+        # support for raw transaction sending
+        send_raw_transaction = kwargs.get('send_raw', False)
 
         # Get the from account; initialize the first nonce for the account.
         from_account = kwargs['from_address'].address if ('from_address' in kwargs) else self.web3.eth.defaultAccount
@@ -763,7 +782,7 @@ class Transact:
                             self.logger.info(f"Transaction {self.name()} with nonce={self.nonce} was replaced")
                             return None
 
-                        tx_hash = self._func(from_account, gas, gas_price_value, self.nonce)
+                        tx_hash = self._func(from_account, gas, gas_price_value, self.nonce, send_raw_transaction)
                         self.tx_hashes.append(tx_hash)
 
                     self.logger.info(f"Sent transaction {self.name()} with nonce={self.nonce}, gas={gas},"
