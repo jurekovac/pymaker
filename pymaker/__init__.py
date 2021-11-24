@@ -656,12 +656,18 @@ class Transact:
 
         global next_nonce
         self.initial_time = time.time()
-        unknown_kwargs = set(kwargs.keys()) - {'from_address', 'replace', 'gas', 'gas_buffer', 'gas_price', 'send_raw'}
+        unknown_kwargs = set(kwargs.keys()) - {'from_address', 'replace', 'gas', 'gas_buffer', 'gas_price', 'send_raw',
+                                               'override_nonce_calculation'}
         if len(unknown_kwargs) > 0:
             raise ValueError(f"Unknown kwargs: {unknown_kwargs}")
 
         # support for raw transaction sending
         send_raw_transaction = kwargs.get('send_raw', False)
+
+        # override nonce_calculation
+        nonce_calculation = None
+        if kwargs.get('override_nonce_calculation', False):
+            nonce_calculation = NonceCalculation.TX_COUNT
 
         # Get the from account; initialize the first nonce for the account.
         from_account = kwargs['from_address'].address if ('from_address' in kwargs) else self.web3.eth.defaultAccount
@@ -762,7 +768,8 @@ class Transact:
                     # We need the lock in order to not try to send two transactions with the same nonce.
                     with transaction_lock:
                         if self.nonce is None:
-                            nonce_calculation = _get_nonce_calc(self.web3)
+                            if nonce_calculation is None:
+                                nonce_calculation = _get_nonce_calc(self.web3)
                             if nonce_calculation == NonceCalculation.PARITY_NEXTNONCE:
                                 self.nonce = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
                             elif nonce_calculation == NonceCalculation.TX_COUNT:
