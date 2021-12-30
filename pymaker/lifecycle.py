@@ -20,6 +20,7 @@ import logging
 import signal
 import threading
 import time
+import traceback
 
 import pytz
 from pymaker.sign import eth_sign
@@ -90,6 +91,7 @@ class Lifecycle:
         self.event_timers = []
         self.skip_peer_check = False
         self.skip_syncing_check = False
+        # use latest block on new block event
         self.new_block_callback_use_latest = False
 
         self.terminated_internally = False
@@ -345,6 +347,8 @@ class Lifecycle:
             try:
                 self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
                 block = self.web3.eth.getBlock(block_hash)
+                if block_hash == 'latest':
+                    block_hash = block['hash']
                 block_number = block['number']
                 # print(f"new_block: {block_number}")
                 if self.skip_syncing_check:
@@ -376,6 +380,12 @@ class Lifecycle:
             except Exception as err:
                 # print(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
                 self.logger.warning(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
+                msg = ""
+                for t in traceback.format_tb(err.__traceback__):
+                    t = t.replace("\n", ":")
+                    t = t[:-1]
+                    msg += f"     {t}\n"
+                self.logger.info(f"{msg}")
 
                 # print(f"new_block: {block_number} end")
 
@@ -387,11 +397,11 @@ class Lifecycle:
                     break
 
                 try:
-                    if self.new_block_callback_use_latest:
-                        new_block_callback(self.web3.eth.getBlock('latest').hash)
-                    else:
-                        for event in event_filter.get_new_entries():
-                            new_block_callback(event)
+                    for event in event_filter.get_new_entries():
+                        block_hash = event
+                        if self.new_block_callback_use_latest:
+                            block_hash = 'latest'
+                        new_block_callback(block_hash)
                 except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
                     # print(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
                     self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
