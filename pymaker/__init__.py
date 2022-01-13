@@ -601,7 +601,8 @@ class Transact:
 
         return function_factory(*self.parameters)
 
-    def _interlocked_choose_nonce_and_send(self, from_account: str, gas: int, gas_fees: dict, override_nonce_calculation: bool = False):
+    def _interlocked_choose_nonce_and_send(self, from_account: str, gas: int, gas_fees: dict,
+                                           override_nonce_calc: bool = False, send_raw: bool = False):
         global next_nonce
         assert isinstance(from_account, str)    # address of the sender
         assert isinstance(gas, int)             # gas amount
@@ -617,7 +618,7 @@ class Transact:
 
         try:
             if self.nonce is None:
-                if override_nonce_calculation:
+                if override_nonce_calc:
                     nonce_calc = NonceCalculation.TX_COUNT
                 else:
                     nonce_calc = _get_endpoint_behavior(self.web3).nonce_calc
@@ -642,7 +643,7 @@ class Transact:
                 self.logger.info(f"Transaction {self.name()} with nonce={self.nonce} was replaced")
                 return None
 
-            tx_hash = self._func(from_account, gas, gas_fees, self.nonce)
+            tx_hash = self._func(from_account, gas, gas_fees, self.nonce, send_raw=send_raw)
             self.tx_hashes.append(tx_hash)
 
             self.logger.info(f"Sent transaction {self.name()} with nonce={self.nonce}, gas={gas},"
@@ -763,9 +764,7 @@ class Transact:
         send_raw_transaction = kwargs.get('send_raw', False)
 
         # override nonce_calculation
-        nonce_calculation = None
-        if kwargs.get('override_nonce_calculation', False):
-            nonce_calculation = NonceCalculation.TX_COUNT
+        override_nonce_calc = kwargs.get('override_nonce_calculation', False)
 
         # Get the account from which the transaction will be submitted
         from_account = kwargs['from_address'].address if ('from_address' in kwargs) else self.web3.eth.defaultAccount
@@ -859,7 +858,7 @@ class Transact:
             transaction_was_sent = len(self.tx_hashes) > 0 or (replaced_tx is not None and len(replaced_tx.tx_hashes) > 0)
             if not transaction_was_sent or (self.gas_fees_last and self._gas_exceeds_replacement_threshold(self.gas_fees_last, gas_fees)):
                 self.gas_fees_last = gas_fees
-                self._interlocked_choose_nonce_and_send(from_account, gas, gas_fees, override_nonce_calculation)
+                self._interlocked_choose_nonce_and_send(from_account, gas, gas_fees, override_nonce_calc, send_raw_transaction)
             await asyncio.sleep(0.25)
 
     def invocation(self) -> Invocation:
