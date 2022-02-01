@@ -679,7 +679,7 @@ class Transact:
 
         return name if self.extra is None else name + f" with {self.extra}"
 
-    def estimated_gas(self, from_address: Address) -> int:
+    def estimated_gas(self, from_address: Address, block_identifier: Union[int, str] = None) -> int:
         """Return an estimated amount of gas which will get consumed by this Ethereum transaction.
 
         May throw an exception if the actual transaction will fail as well.
@@ -696,11 +696,12 @@ class Transact:
             if self.function_name is None:
                 return self.web3.eth.estimateGas({**self._as_dict(self.extra), **{'from': from_address.address,
                                                                                   'to': self.address.address,
-                                                                                  'data': self.parameters[0]}})
+                                                                                  'data': self.parameters[0]}},
+                                                                                  block_identifier=block_identifier)
 
             else:
                 estimate = self._contract_function() \
-                        .estimateGas({**self._as_dict(self.extra), **{'from': from_address.address}})
+                        .estimateGas({**self._as_dict(self.extra), **{'from': from_address.address}}, block_identifier=block_identifier)
 
         else:
             estimate = 21000
