@@ -26,7 +26,7 @@ from enum import Enum, auto
 from functools import total_ordering, wraps
 from pprint import pprint
 from threading import Lock
-from typing import Optional
+from typing import Optional, Union
 from weakref import WeakKeyDictionary
 
 import eth_utils
