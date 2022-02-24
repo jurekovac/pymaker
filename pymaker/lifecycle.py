@@ -21,11 +21,16 @@ import signal
 import threading
 import time
 import traceback
+import json
+import asyncio
 
 import pytz
 from pymaker.sign import eth_sign
 from web3 import Web3
 from web3.exceptions import BlockNotFound, BlockNumberOutofRange
+from web3.types import HexBytes
+
+from websockets import connect
 
 from pymaker import register_filter_thread, any_filter_thread_present, stop_all_filter_threads, all_filter_threads_alive
 from pymaker.util import AsyncCallback
@@ -89,10 +94,14 @@ class Lifecycle:
         self.block_function = None
         self.every_timers = []
         self.event_timers = []
+
+        """ web3 client specific tuning options """
         self.skip_peer_check = False
         self.skip_syncing_check = False
-        # use latest block on new block event
+        """ use latest block on new block event """
         self.new_block_callback_use_latest = False
+        """ Use eth_subscribe for new blocks instead of eth_newBlockFilter. (e.g. Erigon does not support eth_filter) """
+        self.subscribe_new_heads = False
 
         self.terminated_internally = False
         self.terminated_externally = False
@@ -413,14 +422,64 @@ class Lifecycle:
                     break
 
                     # self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {err}")
-                    # kevent_filter = self.web3.eth.filter('latest')
+                    # event_filter = self.web3.eth.filter('latest')
                 finally:
                     time.sleep(0.05)
+
+        def new_block_watch_subscribe():
+
+            async def get_event():
+
+                while True:
+                    if self.terminated_internally or self.terminated_externally:
+                        break
+
+                    if hasattr(self.web3.provider, 'endpoint_uri'):
+                        endpoint_uri = self.web3.provider.endpoint_uri
+                    else:
+                        self.logger.error(f"Lifecycle Error: invalid web3 provider: {repr(self.web3.provider)}")
+                        self.terminated_internally = True
+                        return
+
+                    self.logger.info(f"JK: connecting to: {endpoint_uri}")
+                    async with connect(endpoint_uri) as ws:
+                        await ws.send(json.dumps({"id": 1, "method": "eth_subscribe", "params": ["newHeads"]}))
+                        subscription_response = await ws.recv()
+                        self.logger.info(f"JK: subscribed to newHeads. Response: {subscription_response}")
+                        while True:
+                            if self.terminated_internally or self.terminated_externally:
+                                break
+
+                            try:
+                                message = await asyncio.wait_for(ws.recv(), timeout=60)
+                                block_hash = HexBytes(json.loads(message)['params']['result']['hash'])
+                                # self.logger.info(f"new block hash: {block_hash.hex()}")
+                                if self.new_block_callback_use_latest:
+                                    block_hash = 'latest'
+                                new_block_callback(block_hash)
+                            except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
+                                self.logger.warning(f"Node dropped event emitter; resubscribing: {type(ex)}: {ex}")
+                                time.sleep(0.5)
+                                break
+                            except Exception as err:
+                                self.logger.error(f"Lifecycle Exception: {err}")
+                                self.terminated_internally = True
+                                break
+
+                            finally:
+                                time.sleep(0.05)
+
+            asyncio.new_event_loop().run_until_complete(get_event())
 
         if self.block_function:
             self._on_block_callback = AsyncCallback(self.block_function)
 
-            block_filter = threading.Thread(target=new_block_watch, daemon=True)
+            if self.subscribe_new_heads:
+                block_watch_function = new_block_watch_subscribe
+            else:
+                block_watch_function = new_block_watch
+
+            block_filter = threading.Thread(target=block_watch_function, daemon=True)
             block_filter.start()
             register_filter_thread(block_filter)
 
