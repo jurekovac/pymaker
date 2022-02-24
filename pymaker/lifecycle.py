@@ -441,11 +441,11 @@ class Lifecycle:
                         self.terminated_internally = True
                         return
 
-                    self.logger.info(f"JK: connecting to: {endpoint_uri}")
+                    self.logger.info(f"connecting to: {endpoint_uri}")
                     async with connect(endpoint_uri) as ws:
                         await ws.send(json.dumps({"id": 1, "method": "eth_subscribe", "params": ["newHeads"]}))
                         subscription_response = await ws.recv()
-                        self.logger.info(f"JK: subscribed to newHeads. Response: {subscription_response}")
+                        self.logger.info(f"subscribed to newHeads. Response: {subscription_response}")
                         while True:
                             if self.terminated_internally or self.terminated_externally:
                                 break
