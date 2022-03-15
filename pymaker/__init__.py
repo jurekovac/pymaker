@@ -599,7 +599,9 @@ class Transact:
         else:
             function_factory = self.contract.get_function_by_name(self.function_name)
 
-        return function_factory(*self.parameters)
+        func = function_factory(*self.parameters)
+        func.web3 = self.web3
+        return func
 
     def _interlocked_choose_nonce_and_send(self, from_account: str, gas: int, gas_fees: dict,
                                            override_nonce_calc: bool = False, send_raw: bool = False):
@@ -694,14 +696,16 @@ class Transact:
 
         if self.contract is not None:
             if self.function_name is None:
-                return self.web3.eth.estimateGas({**self._as_dict(self.extra), **{'from': from_address.address,
-                                                                                  'to': self.address.address,
-                                                                                  'data': self.parameters[0]}},
-                                                                                  block_identifier=block_identifier)
+                return self.web3.eth.estimateGas({**self._as_dict(self.extra),
+                                                  **{'from': from_address.address,
+                                                     'to': self.address.address,
+                                                     'data': self.parameters[0]}},
+                                                 block_identifier=block_identifier)
 
             else:
-                estimate = self._contract_function() \
-                        .estimateGas({**self._as_dict(self.extra), **{'from': from_address.address}}, block_identifier=block_identifier)
+                self.logger.info(f"JK: estimate contract function: ")
+                estimate = self._contract_function().estimateGas({**self._as_dict(self.extra), **{'from': from_address.address}},
+                                                                 block_identifier=block_identifier)
 
         else:
             estimate = 21000
