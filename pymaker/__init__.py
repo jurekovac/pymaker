@@ -703,7 +703,6 @@ class Transact:
                                                  block_identifier=block_identifier)
 
             else:
-                self.logger.info(f"JK: estimate contract function: ")
                 estimate = self._contract_function().estimateGas({**self._as_dict(self.extra), **{'from': from_address.address}},
                                                                  block_identifier=block_identifier)
 
