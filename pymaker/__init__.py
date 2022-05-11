@@ -770,7 +770,7 @@ class Transact:
         global next_nonce
         self.initial_time = time.time()
         unknown_kwargs = set(kwargs.keys()) - {'from_address', 'replace', 'gas', 'gas_buffer', 'gas_strategy', 'send_raw',
-                                               'override_nonce_calculation'}
+                                               'use_latest_block'}
         if len(unknown_kwargs) > 0:
             raise ValueError(f"Unknown kwargs: {unknown_kwargs}")
 
