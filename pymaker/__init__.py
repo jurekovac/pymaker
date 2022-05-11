@@ -94,8 +94,20 @@ class EndpointBehavior:
             return f"{self.nonce_calc} without EIP 1559 support"
 
 
-def _get_endpoint_behavior(web3: Web3) -> EndpointBehavior:
+def set_endpoint_behavior(web3: Web3, nonce_calc: NonceCalculation, supports_london: bool):
     assert isinstance(web3, Web3)
+    assert isinstance(nonce_calc, NonceCalculation)
+    assert isinstance(supports_london, bool)
+    global endpoint_behavior
+
+    behavior = EndpointBehavior(nonce_calc, supports_london)
+    endpoint_behavior[web3] = behavior
+    logger.debug(f"node clientVersion={web3.clientVersion}, will use {behavior}")
+
+
+def _get_endpoint_behavior(web3: Web3, use_pending_block: bool = True) -> EndpointBehavior:
+    assert isinstance(web3, Web3)
+    assert isinstance(use_pending_block, bool)
     global endpoint_behavior
     if web3 not in endpoint_behavior:
 
@@ -603,12 +615,13 @@ class Transact:
         func.web3 = self.web3
         return func
 
-    def _interlocked_choose_nonce_and_send(self, from_account: str, gas: int, gas_fees: dict,
-                                           override_nonce_calc: bool = False, send_raw: bool = False):
+    def _interlocked_choose_nonce_and_send(self, from_account: str, gas: int, gas_fees: dict, send_raw: bool = False,
+                                           block_identifier: str = 'pending'):
         global next_nonce
-        assert isinstance(from_account, str)    # address of the sender
-        assert isinstance(gas, int)             # gas amount
-        assert isinstance(gas_fees, dict)       # gas fee parameters
+        assert isinstance(from_account, str)        # address of the sender
+        assert isinstance(gas, int)                 # gas amount
+        assert isinstance(gas_fees, dict)           # gas fee parameters
+        assert isinstance(block_identifier, str) and block_identifier in ['pending', 'latest']  # use block_identifier pending (or latest)
 
         # We need the lock in order to not try to send two transactions with the same nonce.
         transaction_lock.acquire()
@@ -616,20 +629,17 @@ class Transact:
 
         if from_account not in next_nonce:
             # logging.debug(f"Initializing nonce for {from_account}")
-            next_nonce[from_account] = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
+            next_nonce[from_account] = self.web3.eth.getTransactionCount(from_account, block_identifier=block_identifier)
 
         try:
             if self.nonce is None:
-                if override_nonce_calc:
-                    nonce_calc = NonceCalculation.TX_COUNT
-                else:
-                    nonce_calc = _get_endpoint_behavior(self.web3).nonce_calc
+                nonce_calc = _get_endpoint_behavior(self.web3).nonce_calc
                 if nonce_calc == NonceCalculation.PARITY_NEXTNONCE:
                     self.nonce = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
                 elif nonce_calc == NonceCalculation.TX_COUNT:
-                    self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
+                    self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier=block_identifier)
                 elif nonce_calc == NonceCalculation.SERIAL:
-                    tx_count = self.web3.eth.getTransactionCount(from_account, block_identifier='pending')
+                    tx_count = self.web3.eth.getTransactionCount(from_account, block_identifier=block_identifier)
                     next_serial = next_nonce[from_account]
                     self.nonce = max(tx_count, next_serial)
                 elif nonce_calc == NonceCalculation.PARITY_SERIAL:
@@ -767,8 +777,8 @@ class Transact:
         # support for raw transaction sending
         send_raw_transaction = kwargs.get('send_raw', False)
 
-        # override nonce_calculation
-        override_nonce_calc = kwargs.get('override_nonce_calculation', False)
+        # use latest block for get_transaction_count
+        use_latest_block = kwargs.get('use_latest_block', False)
 
         # Get the account from which the transaction will be submitted
         from_account = kwargs['from_address'].address if ('from_address' in kwargs) else self.web3.eth.defaultAccount
@@ -862,7 +872,10 @@ class Transact:
             transaction_was_sent = len(self.tx_hashes) > 0 or (replaced_tx is not None and len(replaced_tx.tx_hashes) > 0)
             if not transaction_was_sent or (self.gas_fees_last and self._gas_exceeds_replacement_threshold(self.gas_fees_last, gas_fees)):
                 self.gas_fees_last = gas_fees
-                self._interlocked_choose_nonce_and_send(from_account, gas, gas_fees, override_nonce_calc, send_raw_transaction)
+                get_count_block_identifier = 'pending'
+                if use_latest_block:
+                    get_count_block_identifier = 'latest'
+                self._interlocked_choose_nonce_and_send(from_account, gas, gas_fees, send_raw_transaction, get_count_block_identifier)
             await asyncio.sleep(0.25)
 
     def invocation(self) -> Invocation:
