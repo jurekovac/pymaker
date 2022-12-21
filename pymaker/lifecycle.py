@@ -215,6 +215,9 @@ class Lifecycle:
                     self.logger.info(f"Waiting for the node to have at least one peer...")
                     while self.web3.net.peer_count == 0:
                         time.sleep(0.25)
+                        if self.terminated_internally or self.terminated_externally:
+                            self.logger.info(f"terminated...")
+                            break
             except Exception as err:
                 if 'unauthorized method' in str(err).lower():
                     pass
@@ -229,6 +232,9 @@ class Lifecycle:
                     self.logger.info(f"Waiting for the node to sync...")
                     while self.web3.eth.syncing:
                         time.sleep(0.25)
+                        if self.terminated_internally or self.terminated_externally:
+                            self.logger.info(f"terminated...")
+                            break
             except Exception as err:
                 if 'unauthorized method' in str(err).lower():
                     pass
