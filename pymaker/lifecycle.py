@@ -472,9 +472,6 @@ class Lifecycle:
                                 self.terminated_internally = True
                                 break
 
-                            finally:
-                                time.sleep(0.05)
-
             asyncio.new_event_loop().run_until_complete(get_event())
 
         if self.block_function:
