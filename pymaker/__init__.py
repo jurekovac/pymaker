@@ -36,6 +36,7 @@ from hexbytes import HexBytes
 from web3 import HTTPProvider, Web3
 from web3._utils.contracts import get_function_info, encode_abi
 from web3._utils.events import get_event_data
+from web3._utils.transactions import fill_transaction_defaults
 from web3.exceptions import TransactionNotFound
 from web3.middleware import geth_poa_middleware
 from web3.exceptions import LogTopicError, TransactionNotFound
@@ -475,7 +476,8 @@ class Transact:
                  function_name: Optional[str],
                  parameters: Optional[list],
                  extra: Optional[dict] = None,
-                 result_function=None):
+                 result_function=None,
+                 name = None):
         assert(isinstance(origin, object) or (origin is None))
         assert(isinstance(web3, Web3))
         assert(isinstance(abi, list) or (abi is None))
@@ -485,6 +487,7 @@ class Transact:
         assert(isinstance(parameters, list) or (parameters is None))
         assert(isinstance(extra, dict) or (extra is None))
         assert(callable(result_function) or (result_function is None))
+        assert(isinstance(name, str) or name is None)
 
         self.origin = origin
         self.web3 = web3
@@ -502,6 +505,7 @@ class Transact:
         self.gas_strategy = None
         self.gas_fees_last = None
         self.tx_hashes = []
+        self.name_override = name
 
     def set_web3(self, web3: Web3):
         assert(isinstance(web3, Web3))
@@ -575,7 +579,7 @@ class Transact:
         else:  # Replacement impossible if no parameters were offered
             return False
 
-    def _func(self, from_account: str, gas: int, gas_price_params: dict, nonce: Optional[int], send_raw: bool = False):
+    def _func(self, from_account: str, gas: int, gas_price_params: dict, nonce: Optional[int], send_raw: bool = False, private_key: str = None):
         assert isinstance(from_account, str)
         assert isinstance(gas_price_params, dict)
         assert isinstance(nonce, int) or nonce is None
@@ -585,24 +589,34 @@ class Transact:
                               **gas_price_params,
                               **nonce_dict,
                               **self._as_dict(self.extra)}
+
+        if private_key:
+            send_raw = True
+        elif send_raw:
+            private_key = _registered_accounts.get((self.web3, Address(from_account))).privateKey
+
         if self.contract is not None:
             if self.function_name is None:
-
-                return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params,
-                                                                          **{'to': self.address.address,
-                                                                             'data': self.parameters[0]}}))
+                if send_raw:
+                    prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **{'to': self.address.address,'data': self.parameters[0]}})
+                    signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
+                    return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
+                else:
+                    return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params, **{'to': self.address.address, 'data': self.parameters[0]}}))
             else:
-                # TODO: implement raw_send for other if cases - required by optimism
                 if send_raw:
                     prepared_transaction = self._contract_function().buildTransaction(transaction_params)
-                    local_account = _registered_accounts.get((self.web3, Address(from_account)))
-                    signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, local_account.privateKey)
+                    signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
                     return bytes_to_hexstring(self.web3.eth.sendRawTransaction(signed_txn.rawTransaction))
                 else:
                     return bytes_to_hexstring(self._contract_function().transact(transaction_params))
         else:
-            return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params,
-                                                                      **{'to': self.address.address}}))
+            if send_raw:
+                prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **{'to': self.address.address}})
+                signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
+                return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
+            else:
+                return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params, **{'to': self.address.address}}))
 
     def _contract_function(self):
         if '(' in self.function_name:
@@ -616,7 +630,7 @@ class Transact:
         return func
 
     def _interlocked_choose_nonce_and_send(self, from_account: str, gas: int, gas_fees: dict, send_raw: bool = False,
-                                           block_identifier: str = 'pending'):
+                                           block_identifier: str = 'pending', private_key: str = None):
         global next_nonce
         assert isinstance(from_account, str)        # address of the sender
         assert isinstance(gas, int)                 # gas amount
@@ -655,7 +669,7 @@ class Transact:
                 self.logger.info(f"Transaction {self.name()} with nonce={self.nonce} was replaced")
                 return None
 
-            tx_hash = self._func(from_account, gas, gas_fees, self.nonce, send_raw=send_raw)
+            tx_hash = self._func(from_account, gas, gas_fees, self.nonce, send_raw=send_raw, private_key=private_key)
             self.tx_hashes.append(tx_hash)
 
             self.logger.info(f"Sent transaction {self.name()} with nonce={self.nonce}, gas={gas},"
@@ -677,7 +691,9 @@ class Transact:
         Returns:
             Nicely formatted name of this pending Ethereum transaction.
         """
-        if self.origin:
+        if self.name_override:
+            return self.name_override
+        elif self.origin:
             def format_parameter(parameter):
                 if isinstance(parameter, bytes):
                     return bytes_to_hexstring(parameter)
@@ -770,7 +786,7 @@ class Transact:
         global next_nonce
         self.initial_time = time.time()
         unknown_kwargs = set(kwargs.keys()) - {'from_address', 'replace', 'gas', 'gas_buffer', 'gas_strategy', 'send_raw',
-                                               'use_latest_block'}
+                                               'use_latest_block', 'private_key'}
         if len(unknown_kwargs) > 0:
             raise ValueError(f"Unknown kwargs: {unknown_kwargs}")
 
@@ -782,6 +798,8 @@ class Transact:
 
         # Get the account from which the transaction will be submitted
         from_account = kwargs['from_address'].address if ('from_address' in kwargs) else self.web3.eth.defaultAccount
+
+        private_key = kwargs.get('private_key')
 
         # First we try to estimate the gas usage of the transaction. If gas estimation fails
         # it means there is no point in sending the transaction, thus we fail instantly and
@@ -875,7 +893,7 @@ class Transact:
                 get_count_block_identifier = 'pending'
                 if use_latest_block:
                     get_count_block_identifier = 'latest'
-                self._interlocked_choose_nonce_and_send(from_account, gas, gas_fees, send_raw_transaction, get_count_block_identifier)
+                self._interlocked_choose_nonce_and_send(from_account, gas, gas_fees, send_raw_transaction, get_count_block_identifier, private_key)
             await asyncio.sleep(0.25)
 
     def invocation(self) -> Invocation:
@@ -890,6 +908,15 @@ class Transact:
             :py:class:`pymaker.Invocation` object for this pending Ethereum transaction.
         """
         return Invocation(self.address, Calldata(self._contract_function()._encode_transaction_data()))
+
+    def export_params(self) -> dict:
+        invocation = self.invocation()
+        out = {
+            'to': invocation.address.address,
+            'data': invocation.calldata.value,
+            'name': self.name()
+            }
+        return out
 
 
 class Transfer:
