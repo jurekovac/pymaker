@@ -469,7 +469,7 @@ class Transact:
 
     def __init__(self,
                  origin: Optional[object],
-                 web3: Web3,
+                 web3: Optional[Web3],
                  abi: Optional[list],
                  address: Address,
                  contract: Optional[object],
@@ -479,7 +479,7 @@ class Transact:
                  result_function=None,
                  name = None):
         assert(isinstance(origin, object) or (origin is None))
-        assert(isinstance(web3, Web3))
+        assert(isinstance(web3, Web3) or (web3 is None))
         assert(isinstance(abi, list) or (abi is None))
         assert(isinstance(address, Address))
         assert(isinstance(contract, object) or (contract is None))
@@ -508,7 +508,7 @@ class Transact:
         self.name_override = name
 
     def set_web3(self, web3: Web3):
-        assert(isinstance(web3, Web3))
+        assert(isinstance(web3, Web3) or web3 is None)
         self.web3 = web3
         if self.contract is not None:
             self.contract.web3 = web3
