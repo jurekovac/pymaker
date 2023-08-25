@@ -34,7 +34,7 @@ logging.getLogger("requests").setLevel(logging.INFO)
 
 endpoint_uri = os.environ['ETH_RPC_URL']
 web3 = web3_via_http(endpoint_uri, timeout=10)
-print(web3.clientVersion)
+print(web3.client_version)
 
 """
 Please set environment ETH_RPC_URL to your Ethereum node URI
@@ -45,9 +45,9 @@ Private key         yes     key_file=~keys/default-account.json,pass_file=~keys/
 Action              yes     token address to mint existing DSToken, symbol to deploy a new token 
 """
 
-web3.eth.defaultAccount = sys.argv[1]
+web3.eth.default_account = sys.argv[1]
 register_keys(web3, [sys.argv[2]])
-our_address = Address(web3.eth.defaultAccount)
+our_address = Address(web3.eth.default_account)
 action = sys.argv[3]
 
 if action.startswith("0x"):

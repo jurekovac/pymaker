@@ -37,7 +37,7 @@ KOVAN_WETH = Address('0xd0a1e359811322d97991e03f863a0c30c2cf029c')
 
 
 web3 = Web3(HTTPProvider('http://localhost:8545'))
-web3.eth.defaultAccount = web3.eth.accounts[0]
+web3.eth.default_account = web3.eth.accounts[0]
 
 exchange = ZrxExchangeV2(web3=web3, address=Address(EXCHANGE_ADDR))
 #exchange.approve([ERC20Token(web3=web3, address=KOVAN_DAI),
@@ -56,6 +56,6 @@ order = exchange.sign_order(order)
 
 #print(api.submit_order(order))
 #print(api.get_orders(KOVAN_WETH, KOVAN_DAI))
-print(api.get_orders_by_maker(Address(web3.eth.defaultAccount)))
+print(api.get_orders_by_maker(Address(web3.eth.default_account)))
 
 #print(exchange.past_fill(500))

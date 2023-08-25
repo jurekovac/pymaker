@@ -26,7 +26,7 @@ from pymaker.sign import eth_sign
 def test_signing():
     # given
     web3 = Web3(HTTPProvider("http://localhost:8555"))
-    web3.eth.defaultAccount = web3.eth.accounts[0]
+    web3.eth.default_account = web3.eth.accounts[0]
 
     # and
     text = "abc"
@@ -39,9 +39,9 @@ def test_signing():
 def test_signing_with_key_and_rpc_should_return_same_result():
     # given
     web3 = Web3(HTTPProvider("http://localhost:8555"))
-    web3.eth.defaultAccount = web3.eth.accounts[0]
+    web3.eth.default_account = web3.eth.accounts[0]
 
-    assert Address(web3.eth.defaultAccount) == Address('0x9596c16d7bf9323265c2f2e22f43e6c80eb3d943')
+    assert Address(web3.eth.default_account) == Address('0x9596c16d7bf9323265c2f2e22f43e6c80eb3d943')
 
     # and
     text = "abc"

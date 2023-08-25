@@ -378,4 +378,4 @@ class EthToken():
          """
         assert(isinstance(address, Address))
 
-        return Wad(self.web3.eth.getBalance(address.address))
+        return Wad(self.web3.eth.get_balance(address.address))

@@ -28,8 +28,8 @@ from pymaker.transactional import TxManager
 class TestTxManager:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.other_address = Address(self.web3.eth.accounts[1])
         self.tx = TxManager.deploy(self.web3)
         self.token1 = DSToken.deploy(self.web3, 'ABC')

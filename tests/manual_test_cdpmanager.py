@@ -29,12 +29,12 @@ from pymaker.dsr import Dsr
 endpoint_uri = f"{os.environ['SERVER_ETH_RPC_HOST']}:{os.environ['SERVER_ETH_RPC_PORT']}"
 web3 = Web3(HTTPProvider(endpoint_uri=endpoint_uri,
                          request_kwargs={"timeout": 10}))
-web3.eth.defaultAccount = sys.argv[1]   # ex: 0x0000000000000000000000000000000aBcdef123
+web3.eth.default_account = sys.argv[1]   # ex: 0x0000000000000000000000000000000aBcdef123
 register_keys(web3, [sys.argv[2]])      # ex: key_file=~keys/default-account.json,pass_file=~keys/default-account.pass
 cdpid = int(sys.argv[3])
 
 mcd = DssDeployment.from_network(web3, "kovan")
-our_address = Address(web3.eth.defaultAccount)
+our_address = Address(web3.eth.default_account)
 dsr_client = Dsr(mcd, our_address)
 print(our_address)
 

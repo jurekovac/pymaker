@@ -62,14 +62,14 @@ def launch_chief(mcd: DssDeployment, address: Address):
 class TestDSPause:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
 
         ds_auth = DSAuth.deploy(self.web3)
         self.ds_pause = DSPause.deploy(self.web3, 5, self.our_address, ds_auth)
 
         self.plan = DSPause.Plan(usr=self.our_address,
-                                 fax=self.web3.toBytes(text='abi.encodeWithSignature("sig()")'),
+                                 fax=self.web3.to_bytes(text='abi.encodeWithSignature("sig()")'),
                                  eta=(datetime.utcnow() + timedelta(seconds=10)))
 
     def test_drop(self):

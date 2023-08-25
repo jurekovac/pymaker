@@ -58,7 +58,7 @@ class OSM(Contract):
 
     def _extract_price(self, storage_slot: int) -> int:
         assert isinstance(storage_slot, int)
-        return Web3.toInt(self.web3.eth.getStorageAt(self.address.address, storage_slot)[16:])
+        return Web3.to_int(self.web3.eth.get_storage_at(self.address.address, storage_slot)[16:])
 
     def __repr__(self):
         return f"OSM('{self.address}')"

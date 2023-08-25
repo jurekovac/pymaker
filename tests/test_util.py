@@ -45,7 +45,7 @@ def mocked_web3(block_0_hash: str) -> Web3:
 
     web3 = Mock(Web3)
     web3.eth = Mock()
-    web3.eth.getBlock = Mock(side_effect=side_effect)
+    web3.eth.get_block = Mock(side_effect=side_effect)
     return web3
 
 
@@ -101,7 +101,7 @@ def mocked_web3_transaction_count(address: Address, latest: int, pending: int) -
 
     web3 = Mock(Web3)
     web3.eth = Mock()
-    web3.eth.getTransactionCount = Mock(side_effect=side_effect)
+    web3.eth.get_transaction_count = Mock(side_effect=side_effect)
     return web3
 
 

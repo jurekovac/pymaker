@@ -43,11 +43,11 @@ logging.getLogger("requests").setLevel(logging.INFO)
 transact = False
 web3 = web3_via_http(endpoint_uri=os.environ['ETH_RPC_URL'])
 if len(sys.argv) > 1:
-    web3.eth.defaultAccount = sys.argv[1]   # ex: 0x0000000000000000000000000000000aBcdef123
+    web3.eth.default_account = sys.argv[1]   # ex: 0x0000000000000000000000000000000aBcdef123
     if len(sys.argv) > 2:
         register_keys(web3, [sys.argv[2]])  # ex: key_file=~keys/default-account.json,pass_file=~keys/default-account.pass
         transact = True
-    our_address = Address(web3.eth.defaultAccount)
+    our_address = Address(web3.eth.default_account)
     stuck_txes_to_submit = int(sys.argv[3]) if len(sys.argv) > 3 else 0
 else:
     our_address = None
@@ -181,7 +181,7 @@ class PendingTransact(Transact):
                 bumped_gas = math.ceil(self.gas_price * 1.125)
                 gas_fees = {'gasPrice': bumped_gas}
         self.logger.info(f"Attempting to cancel TX with nonce={self.nonce} using gas_fees={gas_fees}")
-        tx_hash = bytes_to_hexstring(self.web3.eth.sendTransaction({'from': self.address.address,
+        tx_hash = bytes_to_hexstring(self.web3.eth.send_transaction({'from': self.address.address,
                                                                     'to': self.address.address,
                                                                     **gas_fees,
                                                                     'nonce': self.nonce,
@@ -194,7 +194,7 @@ class TestApp:
         pending_txes = get_pending_transactions(web3, our_address)
 
         if our_address:
-            print(f"{our_address} TX count is {web3.eth.getTransactionCount(our_address.address, block_identifier='pending')}")
+            print(f"{our_address} TX count is {web3.eth.get_transaction_count(our_address.address, block_identifier='pending')}")
             pprint(list(map(lambda t: f"{t.name()}", pending_txes)))
             if transact and len(pending_txes) > 0:
                 # User would implement their own cancellation logic here, which could involve waiting before

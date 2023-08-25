@@ -27,7 +27,7 @@ from eth_abi.registry import registry as default_registry
 class LogNote:
     def __init__(self, log):
         args = log['args']
-        self.sig = Web3.toHex(args['sig'])
+        self.sig = Web3.to_hex(args['sig'])
         self.usr = args['usr'] if 'usr' in args else None     # vat.frob doesn't offer `usr`
         self.arg1 = args['arg1'] if 'arg1' in args else None
         self.arg2 = args['arg2'] if 'arg2' in args else None

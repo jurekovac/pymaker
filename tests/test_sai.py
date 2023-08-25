@@ -41,7 +41,7 @@ class TestTub:
         deployment.web3.manager.request_blocking("evm_mine", [])
 
         # then
-        assert era == deployment.web3.eth.getBlock('latest').timestamp
+        assert era == deployment.web3.eth.get_block('latest').timestamp
 
     def test_join_and_pie_and_exit(self, deployment: Deployment):
         # given
@@ -551,7 +551,7 @@ class TestVox:
         deployment.web3.manager.request_blocking("evm_mine", [])
 
         # then
-        assert era == deployment.web3.eth.getBlock('latest').timestamp
+        assert era == deployment.web3.eth.get_block('latest').timestamp
 
     def test_default_par(self, deployment: Deployment):
         # expect

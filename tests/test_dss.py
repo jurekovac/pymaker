@@ -68,7 +68,7 @@ def mint_mkr(mkr: DSToken, recipient_address: Address, amount: Wad):
 
 def get_collateral_price(collateral: Collateral):
     assert isinstance(collateral, Collateral)
-    return Wad(Web3.toInt(collateral.pip.read()))
+    return Wad(Web3.to_int(collateral.pip.read()))
 
 
 def set_collateral_price(mcd: DssDeployment, collateral: Collateral, price: Wad):
@@ -185,7 +185,7 @@ def bite(web3: Web3, mcd: DssDeployment, our_address: Address):
     frob(mcd, collateral, our_address, dink, Wad(0))
 
     # Define required bite parameters
-    to_price = Wad(Web3.toInt(collateral.pip.read())) / Wad.from_number(2)
+    to_price = Wad(Web3.to_int(collateral.pip.read())) / Wad.from_number(2)
 
     # Manipulate price to make our CDP underwater
     # Note this will only work on a testchain deployed with fixed prices, where PIP is a DSValue
@@ -240,7 +240,7 @@ class TestConfig:
         token = collateral.gem
         amount = Wad(10)
 
-        assert web3.eth.defaultAccount == our_address.address
+        assert web3.eth.default_account == our_address.address
         assert our_address != other_address
         wrap_eth(mcd, our_address, amount)
 
@@ -431,7 +431,7 @@ class TestVat:
                 from_address=other_address)
 
             # then
-            current_block = mcd.web3.eth.blockNumber
+            current_block = mcd.web3.eth.block_number
             from_block = current_block - 6
             frobs = mcd.vat.past_frobs(from_block)
             assert len(frobs) == 4
@@ -501,7 +501,7 @@ class TestVat:
         assert other_balance_before + Rad.from_number(30) == other_balance_after
 
         # confirm log was emitted and could be parsed
-        from_block = mcd.web3.eth.blockNumber
+        from_block = mcd.web3.eth.block_number
         logs = mcd.vat.past_logs(from_block)
         assert isinstance(logs[0], Vat.LogMove)
         logmove: Vat.LogMove = logs[0]
@@ -533,7 +533,7 @@ class TestVat:
         assert urn_before.art + Wad.from_number(20) == urn_after.art
 
         # confirm log was emitted and could be parsed
-        from_block = mcd.web3.eth.blockNumber
+        from_block = mcd.web3.eth.block_number
         logs = mcd.vat.past_logs(from_block)
         assert isinstance(logs[0], Vat.LogFork)
         logfork: Vat.LogFork = logs[0]

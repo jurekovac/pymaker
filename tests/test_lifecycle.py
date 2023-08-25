@@ -32,8 +32,8 @@ from pymaker.lifecycle import Lifecycle, trigger_event
 class TestLifecycle:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
 
         # `test_etherdelta.py` executes before this test file and creates some event filters,
         # so we need to clear the list of filter threads as otherwise `Web3Lifecycle` will

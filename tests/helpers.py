@@ -40,11 +40,11 @@ def time_travel_by(web3: Web3, seconds: int):
     assert(isinstance(web3, Web3))
     assert(isinstance(seconds, int))
 
-    if "Parity" in web3.clientVersion:
+    if "Parity" in web3.client_version:
         print(f"time travel unsupported by parity; waiting {seconds} seconds")
         time.sleep(seconds)
         # force a block mining to have a correct timestamp in latest block
-        web3.eth.sendTransaction({'from': web3.eth.accounts[0], 'to': web3.eth.accounts[1], 'value': 1})
+        web3.eth.send_transaction({'from': web3.eth.accounts[0], 'to': web3.eth.accounts[1], 'value': 1})
     else:
         web3.manager.request_blocking("evm_increaseTime", [seconds])
         # force a block mining to have a correct timestamp in latest block

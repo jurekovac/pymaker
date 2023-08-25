@@ -32,7 +32,7 @@ def eth_sign(message: bytes, web3: Web3, key=None, in_hexbytes=False, account=No
     assert(isinstance(message, bytes))
     assert(isinstance(web3, Web3))
 
-    local_account = _registered_accounts.get((web3, Address(web3.eth.defaultAccount)))
+    local_account = _registered_accounts.get((web3, Address(web3.eth.default_account)))
 
     if local_account or (account is not None):
 
@@ -59,7 +59,7 @@ def eth_sign(message: bytes, web3: Web3, key=None, in_hexbytes=False, account=No
 
     else:
         signature = bytes_to_hexstring(web3.manager.request_blocking(
-            "eth_sign", [web3.eth.defaultAccount, encode_hex(message)],
+            "eth_sign", [web3.eth.default_account, encode_hex(message)],
         ))
 
         # for `EthereumJS TestRPC/v2.2.1/ethereum-js`

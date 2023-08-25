@@ -32,8 +32,8 @@ PAST_BLOCKS = 100
 class TestEtherDelta:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.etherdelta = EtherDelta.deploy(self.web3,
                                             admin=Address('0x1111100000999998888877777666665555544444'),
                                             fee_account=Address('0x8888877777666665555544444111110000099999'),

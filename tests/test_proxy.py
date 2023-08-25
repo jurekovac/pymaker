@@ -25,7 +25,7 @@ from pymaker.proxy import DSProxyCache, DSProxy, DSProxyFactory, LogCreated
 @pytest.fixture(scope="session")
 def web3():
     web3 = Web3(Web3.HTTPProvider("http://localhost:8555"))
-    web3.eth.defaultAccount = web3.eth.accounts[0]
+    web3.eth.default_account = web3.eth.accounts[0]
     return web3
 
 
@@ -84,7 +84,7 @@ class TestProxyFactory:
 
     def test_past_build(self, proxy_factory: DSProxyFactory, our_address):
         # given
-        past_build = proxy_factory.past_build(proxy_factory.web3.eth.blockNumber)
+        past_build = proxy_factory.past_build(proxy_factory.web3.eth.block_number)
         past_build_count = len(past_build)
 
         # when
@@ -148,7 +148,7 @@ class TestProxy:
 
         # then
         assert target != Address(40*'0')
-        assert Web3.toInt(response) == 0
+        assert Web3.to_int(response) == 0
 
     def test_call_at(self, proxy: DSProxy):
         # given
@@ -165,4 +165,4 @@ class TestProxy:
         response = proxy.call_at(new_factory_addr, calldata)
 
         # then
-        assert Web3.toInt(response) == 1
+        assert Web3.to_int(response) == 1

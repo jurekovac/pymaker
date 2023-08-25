@@ -103,7 +103,7 @@ def set_endpoint_behavior(web3: Web3, nonce_calc: NonceCalculation, supports_lon
 
     behavior = EndpointBehavior(nonce_calc, supports_london)
     endpoint_behavior[web3] = behavior
-    logger.debug(f"node clientVersion={web3.clientVersion}, will use {behavior}")
+    logger.debug(f"node clientVersion={web3.client_version}, will use {behavior}")
 
 
 def _get_endpoint_behavior(web3: Web3, use_pending_block: bool = True) -> EndpointBehavior:
@@ -116,7 +116,7 @@ def _get_endpoint_behavior(web3: Web3, use_pending_block: bool = True) -> Endpoi
         providers_without_nonce_calculation = ['alchemy', 'infura', 'quiknode']
         requires_serial_nonce = any(provider in web3.manager.provider.endpoint_uri for provider in
                                     providers_without_nonce_calculation)
-        is_parity = "parity" in web3.clientVersion.lower() or "openethereum" in web3.clientVersion.lower()
+        is_parity = "parity" in web3.client_version.lower() or "openethereum" in web3.client_version.lower()
         if requires_serial_nonce:
             nonce_calc = NonceCalculation.SERIAL
         elif is_parity:
@@ -129,7 +129,7 @@ def _get_endpoint_behavior(web3: Web3, use_pending_block: bool = True) -> Endpoi
 
         behavior = EndpointBehavior(nonce_calc, supports_london)
         endpoint_behavior[web3] = behavior
-        logger.debug(f"node clientVersion={web3.clientVersion}, will use {behavior}")
+        logger.debug(f"node clientVersion={web3.client_version}, will use {behavior}")
     return endpoint_behavior[web3]
 
 
@@ -235,12 +235,12 @@ class Contract:
 
         contract = web3.eth.contract(abi=abi, bytecode=bytecode)
         tx_hash = contract.constructor(*args).transact(
-            transaction={'from': eth_utils.to_checksum_address(web3.eth.defaultAccount)})
+            transaction={'from': eth_utils.to_checksum_address(web3.eth.default_account)})
 
         submitted = time.time()
         while time.time() - submitted < timeout:
             try:
-                receipt = web3.eth.getTransactionReceipt(tx_hash)
+                receipt = web3.eth.get_transaction_receipt(tx_hash)
                 return Address(receipt['contractAddress'])
             except TransactionNotFound:
                 time.sleep(1)
@@ -259,7 +259,7 @@ class Contract:
         return web3.eth.contract(abi=abi)(address=address.address)
 
     def _past_events(self, contract, event, cls, number_of_past_blocks, event_filter) -> list:
-        block_number = contract.web3.eth.blockNumber
+        block_number = contract.web3.eth.block_number
         return self._past_events_in_block_range(contract, event, cls, max(block_number-number_of_past_blocks, 0),
                                                 block_number, event_filter)
 
@@ -515,7 +515,7 @@ class Transact:
 
     def _get_receipt(self, transaction_hash: str) -> Optional[Receipt]:
         try:
-            raw_receipt = self.web3.eth.getTransactionReceipt(transaction_hash)
+            raw_receipt = self.web3.eth.get_transaction_receipt(transaction_hash)
             if raw_receipt is not None and raw_receipt['blockNumber'] is not None:
                 receipt = Receipt(raw_receipt)
                 receipt.result = self.result_function(receipt) if self.result_function is not None else None
@@ -607,7 +607,7 @@ class Transact:
                 if send_raw:
                     prepared_transaction = self._contract_function().buildTransaction(transaction_params)
                     signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
-                    return bytes_to_hexstring(self.web3.eth.sendRawTransaction(signed_txn.rawTransaction))
+                    return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
                 else:
                     return bytes_to_hexstring(self._contract_function().transact(transaction_params))
         else:
@@ -643,7 +643,7 @@ class Transact:
 
         if from_account not in next_nonce:
             # logging.debug(f"Initializing nonce for {from_account}")
-            next_nonce[from_account] = self.web3.eth.getTransactionCount(from_account, block_identifier=block_identifier)
+            next_nonce[from_account] = self.web3.eth.get_transaction_count(from_account, block_identifier=block_identifier)
 
         try:
             if self.nonce is None:
@@ -651,9 +651,9 @@ class Transact:
                 if nonce_calc == NonceCalculation.PARITY_NEXTNONCE:
                     self.nonce = int(self.web3.manager.request_blocking("parity_nextNonce", [from_account]), 16)
                 elif nonce_calc == NonceCalculation.TX_COUNT:
-                    self.nonce = self.web3.eth.getTransactionCount(from_account, block_identifier=block_identifier)
+                    self.nonce = self.web3.eth.get_transaction_count(from_account, block_identifier=block_identifier)
                 elif nonce_calc == NonceCalculation.SERIAL:
-                    tx_count = self.web3.eth.getTransactionCount(from_account, block_identifier=block_identifier)
+                    tx_count = self.web3.eth.get_transaction_count(from_account, block_identifier=block_identifier)
                     next_serial = next_nonce[from_account]
                     self.nonce = max(tx_count, next_serial)
                 elif nonce_calc == NonceCalculation.PARITY_SERIAL:
@@ -722,14 +722,14 @@ class Transact:
 
         if self.contract is not None:
             if self.function_name is None:
-                return self.web3.eth.estimateGas({**self._as_dict(self.extra),
+                return self.web3.eth.estimate_gas({**self._as_dict(self.extra),
                                                   **{'from': from_address.address,
                                                      'to': self.address.address,
                                                      'data': self.parameters[0]}},
                                                  block_identifier=block_identifier)
 
             else:
-                estimate = self._contract_function().estimateGas({**self._as_dict(self.extra), **{'from': from_address.address}},
+                estimate = self._contract_function().estimate_gas({**self._as_dict(self.extra), **{'from': from_address.address}},
                                                                  block_identifier=block_identifier)
 
         else:
@@ -797,7 +797,7 @@ class Transact:
         use_latest_block = kwargs.get('use_latest_block', False)
 
         # Get the account from which the transaction will be submitted
-        from_account = kwargs['from_address'].address if ('from_address' in kwargs) else self.web3.eth.defaultAccount
+        from_account = kwargs['from_address'].address if ('from_address' in kwargs) else self.web3.eth.default_account
 
         private_key = kwargs.get('private_key')
 
@@ -846,7 +846,7 @@ class Transact:
             gas_fees = self._gas_fees(seconds_elapsed, self.gas_strategy)
 
             # CAUTION: if transact_async is called rapidly, we will hammer the node with these JSON-RPC requests
-            if self.nonce is not None and self.web3.eth.getTransactionCount(from_account) > self.nonce:
+            if self.nonce is not None and self.web3.eth.get_transaction_count(from_account) > self.nonce:
                 # Check if any transaction sent so far has been mined (has a receipt).
                 # If it has, we return either the receipt (if if was successful) or `None`.
                 for attempt in range(1, 11):
@@ -868,7 +868,7 @@ class Transact:
                                 return None
 
                     self.logger.debug(f"No receipt found in attempt #{attempt}/10 (nonce={self.nonce},"
-                                      f" getTransactionCount={self.web3.eth.getTransactionCount(from_account)})")
+                                      f" getTransactionCount={self.web3.eth.get_transaction_count(from_account)})")
 
                     await asyncio.sleep(0.5)
 

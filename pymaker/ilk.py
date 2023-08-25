@@ -50,13 +50,13 @@ class Ilk:
         self.dust = dust
 
     def toBytes(self):
-        return Web3.toBytes(text=self.name).ljust(32, bytes(1))
+        return Web3.to_bytes(text=self.name).ljust(32, bytes(1))
 
     @staticmethod
     def fromBytes(ilk: bytes):
         assert (isinstance(ilk, bytes))
 
-        name = Web3.toText(ilk.strip(bytes(1)))
+        name = Web3.to_text(ilk.strip(bytes(1)))
         return Ilk(name)
 
     def __eq__(self, other):

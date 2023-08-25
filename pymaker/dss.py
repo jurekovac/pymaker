@@ -50,13 +50,13 @@ class Urn:
 
     def toBytes(self):
         addr_str = self.address.address
-        return Web3.toBytes(hexstr='0x' + addr_str[2:].zfill(64))
+        return Web3.to_bytes(hexstr='0x' + addr_str[2:].zfill(64))
 
     @staticmethod
     def fromBytes(urn: bytes):
         assert isinstance(urn, bytes)
 
-        address = Address(Web3.toHex(urn[-20:]))
+        address = Address(Web3.to_hex(urn[-20:]))
         return Urn(address)
 
     def __eq__(self, other):
@@ -88,10 +88,10 @@ class Vat(Contract):
         def __init__(self, lognote: LogNote):
             assert isinstance(lognote, LogNote)
 
-            self.ilk = str(Web3.toText(lognote.arg1)).replace('\x00', '')
-            self.urn = Address(Web3.toHex(lognote.arg2)[26:])
-            self.collateral_owner = Address(Web3.toHex(lognote.arg3)[26:])
-            self.dai_recipient = Address(Web3.toHex(lognote.get_bytes_at_index(3))[26:])
+            self.ilk = str(Web3.to_text(lognote.arg1)).replace('\x00', '')
+            self.urn = Address(Web3.to_hex(lognote.arg2)[26:])
+            self.collateral_owner = Address(Web3.to_hex(lognote.arg3)[26:])
+            self.dai_recipient = Address(Web3.to_hex(lognote.get_bytes_at_index(3))[26:])
             self.dink = Wad(int.from_bytes(lognote.get_bytes_at_index(4), byteorder="big", signed=True))
             self.dart = Wad(int.from_bytes(lognote.get_bytes_at_index(5), byteorder="big", signed=True))
             self.block = lognote.block
@@ -105,8 +105,8 @@ class Vat(Contract):
         def __init__(self, lognote: LogNote):
             assert isinstance(lognote, LogNote)
 
-            self.src = Address(Web3.toHex(lognote.arg1)[26:])
-            self.dst = Address(Web3.toHex(lognote.arg2)[26:])
+            self.src = Address(Web3.to_hex(lognote.arg1)[26:])
+            self.dst = Address(Web3.to_hex(lognote.arg2)[26:])
             self.dart = Rad(int.from_bytes(lognote.get_bytes_at_index(2), byteorder="big", signed=True))
             self.block = lognote.block
             self.tx_hash = lognote.tx_hash
@@ -119,9 +119,9 @@ class Vat(Contract):
         def __init__(self, lognote: LogNote):
             assert isinstance(lognote, LogNote)
 
-            self.ilk = str(Web3.toText(lognote.arg1)).replace('\x00', '')
-            self.src = Address(Web3.toHex(lognote.arg2)[26:])
-            self.dst = Address(Web3.toHex(lognote.arg3)[26:])
+            self.ilk = str(Web3.to_text(lognote.arg1)).replace('\x00', '')
+            self.src = Address(Web3.to_hex(lognote.arg2)[26:])
+            self.dst = Address(Web3.to_hex(lognote.arg3)[26:])
             self.dink = Wad(int.from_bytes(lognote.get_bytes_at_index(3), byteorder="big", signed=True))
             self.dart = Wad(int.from_bytes(lognote.get_bytes_at_index(4), byteorder="big", signed=True))
             self.block = lognote.block
@@ -384,7 +384,7 @@ class Vat(Contract):
         Returns:
             Unordered list of past `LogFork`, `LogFrob`, and `LogMove` events.
         """
-        current_block = self._contract.web3.eth.blockNumber
+        current_block = self._contract.web3.eth.block_number
         assert isinstance(from_block, int)
         assert from_block <= current_block
         if to_block is None:
@@ -413,7 +413,7 @@ class Vat(Contract):
             logger.debug(f"Querying logs from block {start} to {end} ({end-start} blocks); "
                          f"accumulated {len(retval)} logs in {chunks_queried-1} requests")
 
-            logs = self.web3.eth.getLogs(filter_params)
+            logs = self.web3.eth.get_logs(filter_params)
 
             lognotes = list(map(lambda l: LogNote.from_event(l, Vat.abi), logs))
 
@@ -632,7 +632,7 @@ class Jug(Contract):
     def rho(self, ilk: Ilk) -> int:
         assert isinstance(ilk, Ilk)
 
-        return Web3.toInt(self._contract.functions.ilks(ilk.toBytes()).call()[1])
+        return Web3.to_int(self._contract.functions.ilks(ilk.toBytes()).call()[1])
 
     def __repr__(self):
         return f"Jug('{self.address}')"
@@ -658,7 +658,7 @@ class Cat(Contract):
             self.raw = log
 
         def era(self, web3: Web3):
-            return web3.eth.getBlock(self.raw['blockNumber'])['timestamp']
+            return web3.eth.get_block(self.raw['blockNumber'])['timestamp']
 
         def __eq__(self, other):
             assert isinstance(other, Cat.LogBite)
@@ -802,7 +802,7 @@ class Dog(Contract):
             self.raw = log
 
         def era(self, web3: Web3):
-            return web3.eth.getBlock(self.raw['blockNumber'])['timestamp']
+            return web3.eth.get_block(self.raw['blockNumber'])['timestamp']
 
         def __eq__(self, other):
             assert isinstance(other, Cat.LogBite)
@@ -869,7 +869,7 @@ class Dog(Contract):
         if kpr:
             assert isinstance(kpr, Address)
         else:
-            kpr = Address(self.web3.eth.defaultAccount)
+            kpr = Address(self.web3.eth.default_account)
 
         ilk = self.vat.ilk(ilk.name)
         urn = self.vat.urn(ilk, urn.address)
@@ -939,7 +939,7 @@ class Pot(Contract):
         return Ray(chi)
 
     def rho(self) -> int:
-        return Web3.toInt(self._contract.functions.rho().call())
+        return Web3.to_int(self._contract.functions.rho().call())
 
     def drip(self) -> Transact:
         return Transact(self, self.web3, self.abi, self.address, self._contract, 'drip', [])

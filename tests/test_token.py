@@ -28,8 +28,8 @@ from pymaker.token import DSToken, DSEthToken, ERC20Token
 class TestERC20Token:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.second_address = Address(self.web3.eth.accounts[1])
         self.third_address = Address(self.web3.eth.accounts[2])
         self.token = DSToken.deploy(self.web3, 'ABC')
@@ -52,7 +52,7 @@ class TestERC20Token:
     def test_balance_at_block(self):
         """ This test relies on ganache creating a new block for every transaction by default """
 
-        starting_block = int(self.web3.eth.getBlock('latest')['number'])
+        starting_block = int(self.web3.eth.get_block('latest')['number'])
 
         # check balance before minting
         assert self.token.balance_at_block(self.our_address, starting_block - 1) == Wad(0)
@@ -173,8 +173,8 @@ class TestERC20Token:
 class TestDSToken:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.second_address = Address(self.web3.eth.accounts[1])
         self.dstoken = DSToken.deploy(self.web3, 'ABC')
 
@@ -260,8 +260,8 @@ class TestDSToken:
 class TestDSEthToken:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.dsethtoken = DSEthToken.deploy(self.web3)
 
     def test_fail_when_no_contract_under_that_address(self):

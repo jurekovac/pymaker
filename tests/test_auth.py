@@ -26,8 +26,8 @@ from pymaker.util import hexstring_to_bytes
 class TestDSGuard:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.ds_guard = DSGuard.deploy(self.web3)
 
     def can_call(self, src: str, dst: str, sig: str) -> bool:
@@ -76,8 +76,8 @@ class TestDSGuard:
 class TestDSAuth:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
 
         self.ds_auth = DSAuth.deploy(self.web3)
 

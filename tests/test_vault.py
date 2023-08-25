@@ -25,8 +25,8 @@ from pymaker.vault import DSVault
 class TestDSVault:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.dsvault = DSVault.deploy(self.web3)
 
     def test_fail_when_no_contract_under_that_address(self):

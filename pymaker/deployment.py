@@ -78,8 +78,8 @@ class Deployment:
     """
     def __init__(self):
         web3 = Web3(HTTPProvider("http://localhost:8555"))
-        web3.eth.defaultAccount = web3.eth.accounts[0]
-        our_address = Address(web3.eth.defaultAccount)
+        web3.eth.default_account = web3.eth.accounts[0]
+        our_address = Address(web3.eth.default_account)
         sai = DSToken.deploy(web3, 'DAI')
         sin = DSToken.deploy(web3, 'SIN')
         skr = DSToken.deploy(web3, 'PETH')

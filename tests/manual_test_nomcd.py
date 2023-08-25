@@ -36,7 +36,7 @@ logging.getLogger("requests").setLevel(logging.INFO)
 
 endpoint_uri = sys.argv[1]
 web3 = web3_via_http(endpoint_uri, timeout=10)
-print(web3.clientVersion)
+print(web3.client_version)
 
 """
 Purpose: Tests pymaker on chains or layer-2s where multi-collateral Dai is not deployed.
@@ -50,9 +50,9 @@ Gas tip (GWEI)      no      9
 
 
 if len(sys.argv) > 3:
-    web3.eth.defaultAccount = sys.argv[2]
+    web3.eth.default_account = sys.argv[2]
     register_keys(web3, [sys.argv[3]])
-    our_address = Address(web3.eth.defaultAccount)
+    our_address = Address(web3.eth.default_account)
     run_transactions = True
 elif len(sys.argv) > 2:
     our_address = Address(sys.argv[2])
@@ -77,8 +77,8 @@ class TestApp:
             lifecycle.on_block(self.on_block)
 
     def on_block(self):
-        block = web3.eth.blockNumber
-        logging.info(f"Found block; web3.eth.blockNumber={block}")
+        block = web3.eth.block_number
+        logging.info(f"Found block; web3.eth.block_number={block}")
 
         if run_transactions and block % 3 == 0:
             # dummy transaction: send 0 ETH to ourself

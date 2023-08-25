@@ -26,7 +26,7 @@ def test_local_accounts():
     # given
     # [that address is not recognized by ganache, this way we can be sure it's the local account being used for signing]
     web3 = Web3(HTTPProvider("http://localhost:8555"))
-    web3.eth.defaultAccount = Address('0x13314e21cd6d343ceb857073f3f6d9368919d1ef').address
+    web3.eth.default_account = Address('0x13314e21cd6d343ceb857073f3f6d9368919d1ef').address
 
     # and
     keyfile_path = pkg_resources.resource_filename(__name__, "accounts/4_0x13314e21cd6d343ceb857073f3f6d9368919d1ef.json")
@@ -35,7 +35,7 @@ def test_local_accounts():
 
     # and
     # [as ganache does not know this address, we need to send some ETH to it first]
-    eth_transfer(web3, Address(web3.eth.defaultAccount), Wad.from_number(100)) \
+    eth_transfer(web3, Address(web3.eth.default_account), Wad.from_number(100)) \
         .transact(from_address=Address(web3.eth.accounts[0]))
 
     # when
@@ -45,13 +45,13 @@ def test_local_accounts():
 
     # then
     # [these operations were successful]
-    assert token.balance_of(Address(web3.eth.defaultAccount)) == Wad.from_number(150000)
+    assert token.balance_of(Address(web3.eth.default_account)) == Wad.from_number(150000)
 
 def test_local_accounts_register_key():
     # given
     # [that address is not recognized by ganache, this way we can be sure it's the local account being used for signing]
     web3 = Web3(HTTPProvider("http://localhost:8555"))
-    web3.eth.defaultAccount = Address('0x13314e21cd6d343ceb857073f3f6d9368919d1ef').address
+    web3.eth.default_account = Address('0x13314e21cd6d343ceb857073f3f6d9368919d1ef').address
 
     # and
     keyfile_path = pkg_resources.resource_filename(__name__, "accounts/4_0x13314e21cd6d343ceb857073f3f6d9368919d1ef.json")
@@ -60,7 +60,7 @@ def test_local_accounts_register_key():
 
     # and
     # [as ganache does not know this address, we need to send some ETH to it first]
-    eth_transfer(web3, Address(web3.eth.defaultAccount), Wad.from_number(100)) \
+    eth_transfer(web3, Address(web3.eth.default_account), Wad.from_number(100)) \
         .transact(from_address=Address(web3.eth.accounts[0]))
 
     # when
@@ -70,7 +70,7 @@ def test_local_accounts_register_key():
 
     # then
     # [these operations were successful]
-    assert token.balance_of(Address(web3.eth.defaultAccount)) == Wad.from_number(150000)
+    assert token.balance_of(Address(web3.eth.default_account)) == Wad.from_number(150000)
 
 def test_multiple_local_accounts():
     # given
@@ -80,7 +80,7 @@ def test_multiple_local_accounts():
     # and
     # [that address is not recognized by ganache, this way we can be sure it's the local account being used for signing]
     web3 = Web3(HTTPProvider("http://localhost:8555"))
-    web3.eth.defaultAccount = local_account_1.address
+    web3.eth.default_account = local_account_1.address
 
     # and
     keyfile_path = pkg_resources.resource_filename(__name__, "accounts/4_0x13314e21cd6d343ceb857073f3f6d9368919d1ef.json")

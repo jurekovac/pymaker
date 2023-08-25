@@ -33,7 +33,7 @@ def directly(**kwargs):
     """
 
     def approval_function(token: ERC20Token, spender_address: Address, spender_name: str):
-        address_to_check = kwargs['from_address'] if 'from_address' in kwargs else Address(token.web3.eth.defaultAccount)
+        address_to_check = kwargs['from_address'] if 'from_address' in kwargs else Address(token.web3.eth.default_account)
 
         if token.allowance_of(address_to_check, spender_address) < Wad(2 ** 128 - 1):
             logger = logging.getLogger()
@@ -79,7 +79,7 @@ def hope_directly(**kwargs):
 
     def approval_function(token: ERC20Token, spender_address: Address, spender_name: str):
         address_to_check = kwargs['from_address'] if 'from_address' in kwargs else Address(
-            token.web3.eth.defaultAccount)
+            token.web3.eth.default_account)
 
         move_contract = Contract._get_contract(web3=token.web3, abi=move_abi, address=token.address)
         if move_contract.functions.can(address_to_check.address, spender_address.address).call() is False:

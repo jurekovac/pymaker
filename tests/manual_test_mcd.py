@@ -29,8 +29,8 @@ assert os.environ['ETH_RPC_URL']
 web3 = Web3(HTTPProvider(endpoint_uri=os.environ['ETH_RPC_URL'], request_kwargs={"timeout": 10}))
 our_address = None
 if len(sys.argv) > 1:
-    web3.eth.defaultAccount = sys.argv[1]   # ex: 0x0000000000000000000000000000000aBcdef123
-    our_address = Address(web3.eth.defaultAccount)
+    web3.eth.default_account = sys.argv[1]   # ex: 0x0000000000000000000000000000000aBcdef123
+    our_address = Address(web3.eth.default_account)
 if len(sys.argv) > 2:
     register_keys(web3, [sys.argv[2]])  # ex: key_file=~keys/default-account.json,pass_file=~keys/default-account.pass
     run_transactions = True

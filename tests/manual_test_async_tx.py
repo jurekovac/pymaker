@@ -37,11 +37,11 @@ logging.getLogger("requests").setLevel(logging.INFO)
 
 pool_size = int(sys.argv[3]) if len(sys.argv) > 3 else 10
 web3 = web3_via_http(endpoint_uri=os.environ['ETH_RPC_URL'], http_pool_size=pool_size)
-web3.eth.defaultAccount = sys.argv[1]   # ex: 0x0000000000000000000000000000000aBcdef123
+web3.eth.default_account = sys.argv[1]   # ex: 0x0000000000000000000000000000000aBcdef123
 register_keys(web3, [sys.argv[2]])      # ex: key_file=~keys/default-account.json,pass_file=~keys/default-account.pass
 
 mcd = DssDeployment.from_node(web3)
-our_address = Address(web3.eth.defaultAccount)
+our_address = Address(web3.eth.default_account)
 weth = DssDeployment.from_node(web3).collaterals['ETH-A'].gem
 
 GWEI = 1000000000

@@ -25,7 +25,7 @@ from pymaker.feed import DSValue
 class TestDSValue:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
         self.dsvalue = DSValue.deploy(self.web3)
 
     def test_fail_when_no_contract_under_that_address(self):

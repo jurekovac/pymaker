@@ -36,9 +36,9 @@ logging.getLogger("requests").setLevel(logging.INFO)
 endpoint_uri = sys.argv[1]              # ex: https://localhost:8545
 web3 = Web3(HTTPProvider(endpoint_uri=endpoint_uri, request_kwargs={"timeout": 30}))
 if len(sys.argv) > 3:
-    web3.eth.defaultAccount = sys.argv[2]  # ex: 0x0000000000000000000000000000000aBcdef123
+    web3.eth.default_account = sys.argv[2]  # ex: 0x0000000000000000000000000000000aBcdef123
     register_keys(web3, [sys.argv[3]])      # ex: key_file=~keys/default-account.json,pass_file=~keys/default-account.pass
-    our_address = Address(web3.eth.defaultAccount)
+    our_address = Address(web3.eth.default_account)
     run_transactions = True
 elif len(sys.argv) > 2:
     our_address = Address(sys.argv[2])
@@ -67,18 +67,18 @@ class TestApp:
 
     def on_block(self):
         if run_transactions:
-            logging.info(f"Found block {web3.eth.blockNumber}, joining {self.amount} {ilk.name}  to our urn")
+            logging.info(f"Found block {web3.eth.block_number}, joining {self.amount} {ilk.name}  to our urn")
             collateral.gem.deposit(self.amount).transact()
             assert collateral.adapter.join(our_address, self.amount).transact()
             self.joined += self.amount
         else:
-            logging.info(f"Found block; web3.eth.blockNumber={web3.eth.blockNumber}")
+            logging.info(f"Found block; web3.eth.block_number={web3.eth.block_number}")
         if our_address:
             logging.info(f"Urn balance is {mcd.vat.gem(ilk, our_address)} {ilk.name}")
         # self.request_history()
 
     def request_history(self):
-        logs = mcd.vat.past_frobs(web3.eth.blockNumber - past_blocks)
+        logs = mcd.vat.past_frobs(web3.eth.block_number - past_blocks)
         logging.info(f"Found {len(logs)} frobs in the past {past_blocks} blocks")
 
     def on_shutdown(self):

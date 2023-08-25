@@ -36,8 +36,8 @@ PAST_BLOCKS = 100
 class TestZrx:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.zrx_token = ERC20Token(web3=self.web3, address=deploy_contract(self.web3, 'ZRXToken'))
         self.token_transfer_proxy_address = deploy_contract(self.web3, 'TokenTransferProxy')
         self.exchange = ZrxExchange.deploy(self.web3, self.zrx_token.address, self.token_transfer_proxy_address)
@@ -82,7 +82,7 @@ class TestZrx:
                                            buy_amount=Wad.from_number(2.5), expiration=1763920792)
 
         # then
-        assert order.maker == Address(self.web3.eth.defaultAccount)
+        assert order.maker == Address(self.web3.eth.default_account)
         assert order.taker == Address("0x0000000000000000000000000000000000000000")
         assert order.pay_token == Address("0x0202020202020202020202020202020202020202")
         assert order.pay_amount == Wad.from_number(100)

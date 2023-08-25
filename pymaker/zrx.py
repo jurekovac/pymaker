@@ -393,7 +393,7 @@ class ZrxExchange(Contract):
         assert(isinstance(expiration, int))
 
         return Order(exchange=self,
-                     maker=Address(self.web3.eth.defaultAccount),
+                     maker=Address(self.web3.eth.default_account),
                      taker=self._ZERO_ADDRESS,
                      maker_fee=Wad(0),
                      taker_fee=Wad(0),
@@ -444,7 +444,7 @@ class ZrxExchange(Contract):
     def sign_order(self, order: Order) -> Order:
         """Signs an order so it can be submitted to the relayer.
 
-        Order will be signed by the `web3.eth.defaultAccount` account.
+        Order will be signed by the `web3.eth.default_account` account.
 
         Args:
             order: Order you want to sign.

@@ -25,7 +25,7 @@ from pymaker.numeric import Wad
 
 
 def chain(web3: Web3) -> str:
-    block_0 = web3.eth.getBlock(0)['hash']
+    block_0 = web3.eth.get_block(0)['hash']
     if block_0 == "0xd4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3":
         return "ethlive"
     elif block_0 == "0xa3c565fc15c7478862d50ccd6561e3c06b24cc509bf388941c25ea985ce32cb9":
@@ -56,11 +56,11 @@ def synchronize(futures) -> list:
 
 
 def eth_balance(web3: Web3, address) -> Wad:
-    return Wad(web3.eth.getBalance(address.address))
+    return Wad(web3.eth.get_balance(address.address))
 
 
 def is_contract_at(web3: Web3, address):
-    code = web3.eth.getCode(address.address)
+    code = web3.eth.get_code(address.address)
     return (code is not None) and (code != "0x") and (code != "0x0") and (code != b"\x00") and (code != b"")
 
 
@@ -94,7 +94,7 @@ def bytes_to_hexstring(value) -> str:
 def hexstring_to_bytes(value: str) -> bytes:
     assert(isinstance(value, str))
     assert(value.startswith("0x"))
-    return Web3.toBytes(hexstr=value)
+    return Web3.to_bytes(hexstr=value)
 
 
 class AsyncCallback:

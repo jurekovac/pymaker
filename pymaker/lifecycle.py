@@ -63,7 +63,7 @@ class Lifecycle:
 
     It also handles:
     - waiting for the node to have at least one peer and sync before starting the keeper,
-    - checking if the keeper account (`web3.eth.defaultAccount`) is unlocked.
+    - checking if the keeper account (`web3.eth.default_account`) is unlocked.
 
     Also, once the lifecycle is initialized, keeper starts listening for SIGINT/SIGTERM
     signals and starts a graceful shutdown if it receives any of them.
@@ -117,13 +117,13 @@ class Lifecycle:
         # Initialization phase
         if self.web3:
             self.logger.info(f"Keeper connected to {self.web3.provider}")
-            if self.web3.eth.defaultAccount and self.web3.eth.defaultAccount != "0x0000000000000000000000000000000000000000":
-                self.logger.info(f"Keeper operating as {self.web3.eth.defaultAccount}")
+            if self.web3.eth.default_account and self.web3.eth.default_account != "0x0000000000000000000000000000000000000000":
+                self.logger.info(f"Keeper operating as {self.web3.eth.default_account}")
                 self._check_account_unlocked()
             else:
                 self.logger.info(f"Keeper not operating as any particular account")
                 # web3 calls do not work correctly if defaultAccount is empty
-                self.web3.eth.defaultAccount = "0x0000000000000000000000000000000000000000"
+                self.web3.eth.default_account = "0x0000000000000000000000000000000000000000"
         else:
             self.logger.info(f"Keeper initializing")
 
@@ -205,7 +205,7 @@ class Lifecycle:
     def _wait_for_init(self):
         # In unit-tests waiting for the node to sync does not work correctly.
         # So we skip it.
-        if 'TestRPC' in self.web3.clientVersion:
+        if 'TestRPC' in self.web3.client_version:
             return
 
         # wait for the client to have at least one peer
@@ -245,7 +245,7 @@ class Lifecycle:
         try:
             eth_sign(bytes("pymaker testing if account is unlocked", "utf-8"), self.web3)
         except:
-            self.logger.exception(f"Account {self.web3.eth.defaultAccount} is not unlocked and no private key supplied for it")
+            self.logger.exception(f"Account {self.web3.eth.default_account} is not unlocked and no private key supplied for it")
             self.logger.fatal(f"Unlocking the account or providing the private key is necessary for the keeper to operate")
             exit(-1)
 
@@ -361,7 +361,7 @@ class Lifecycle:
             block_number = None
             try:
                 self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
-                block = self.web3.eth.getBlock(block_hash)
+                block = self.web3.eth.get_block(block_hash)
                 if block_hash == 'latest':
                     block_hash = block['hash']
                 block_number = block['number']
@@ -372,7 +372,7 @@ class Lifecycle:
                     is_syncing = self.web3.eth.syncing
 
                 if not is_syncing:
-                    max_block_number = self.web3.eth.blockNumber
+                    max_block_number = self.web3.eth.block_number
                     if block_number >= max_block_number:
                         def on_start():
                             self.logger.debug(f"Processing block #{block_number} ({block_hash.hex()})")

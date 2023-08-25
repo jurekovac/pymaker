@@ -72,7 +72,7 @@ def create_debt(web3: Web3, mcd: DssDeployment, our_address: Address, deployment
     assert not mcd.cat.can_bite(ilk, mcd.vat.urn(collateral.ilk, deployment_address))
 
     # Undercollateralize by dropping the spot price, and then bite the vault
-    to_price = Wad(Web3.toInt(collateral.pip.read())) / Wad.from_number(2)
+    to_price = Wad(web3.to_int(collateral.pip.read())) / Wad.from_number(2)
     set_collateral_price(mcd, collateral, to_price)
     urn = mcd.vat.urn(collateral.ilk, deployment_address)
     assert urn.ink is not None and urn.art is not None
@@ -85,7 +85,7 @@ def create_debt(web3: Web3, mcd: DssDeployment, our_address: Address, deployment
     wrap_eth(mcd, our_address, Wad.from_number(10))
     collateral.approve(our_address)
     assert collateral.adapter.join(our_address, Wad.from_number(10)).transact(from_address=our_address)
-    web3.eth.defaultAccount = our_address.address
+    web3.eth.default_account = our_address.address
     frob(mcd, collateral, our_address, dink=Wad.from_number(10), dart=Wad.from_number(20))
     collateral.flipper.approve(mcd.vat.address, approval_function=hope_directly())
     current_bid = collateral.flipper.bids(flip_kick)
@@ -160,7 +160,7 @@ class TestFlapper:
 
     @staticmethod
     def last_log(flapper: Flapper):
-        current_block = flapper.web3.eth.blockNumber
+        current_block = flapper.web3.eth.block_number
         return flapper.past_logs(current_block-1, current_block)[0]
 
     def test_getters(self, mcd, flapper):
@@ -273,7 +273,7 @@ class TestFlipper:
 
     @staticmethod
     def last_log(flipper: Flipper):
-        current_block = flipper.web3.eth.blockNumber
+        current_block = flipper.web3.eth.block_number
         return flipper.past_logs(current_block-1, current_block)[0]
 
     def test_getters(self, mcd, flipper):
@@ -302,7 +302,7 @@ class TestFlipper:
         assert mcd.dai.balance_of(deployment_address) == dart
 
         # Undercollateralize the vault
-        to_price = Wad(Web3.toInt(collateral.pip.read())) / Wad.from_number(2)
+        to_price = Wad(web3.to_int(collateral.pip.read())) / Wad.from_number(2)
         set_collateral_price(mcd, collateral, to_price)
         urn = mcd.vat.urn(collateral.ilk, deployment_address)
         ilk = mcd.vat.ilk(ilk.name)
@@ -436,7 +436,7 @@ class TestClipper:
 
     @staticmethod
     def last_log(clipper: Clipper):
-        current_block = clipper.web3.eth.blockNumber
+        current_block = clipper.web3.eth.block_number
         return clipper.past_logs(current_block-1, current_block)[0]
 
     def test_getters(self, mcd, clipper):
@@ -476,7 +476,7 @@ class TestClipper:
         assert mcd.dai_adapter.exit(deployment_address, dart).transact(from_address=deployment_address)
 
         # Undercollateralize the vault
-        to_price = Wad(Web3.toInt(collateral.pip.read())) / Wad.from_number(2)
+        to_price = Wad(web3.to_int(collateral.pip.read())) / Wad.from_number(2)
         set_collateral_price(mcd, collateral, to_price)
         urn = mcd.vat.urn(collateral.ilk, deployment_address)
         ilk = mcd.vat.ilk(ilk.name)
@@ -550,7 +550,7 @@ class TestClipper:
 
         # Take some collateral with max above the top price
         clipper.validate_take(kick, Wad.from_number(0.07), Ray.from_number(180))
-        assert web3.eth.defaultAccount == our_address.address
+        assert web3.eth.default_account == our_address.address
         assert clipper.take(kick, Wad.from_number(0.07), Ray.from_number(180)).transact(from_address=our_address)
         (needs_redo, price, lot, tab) = clipper.status(kick)
         assert not needs_redo
@@ -652,7 +652,7 @@ class TestFlopper:
 
     @staticmethod
     def last_log(flopper: Flopper):
-        current_block = flopper.web3.eth.blockNumber
+        current_block = flopper.web3.eth.block_number
         return flopper.past_logs(current_block-1, current_block)[0]
 
     def test_getters(self, mcd, flopper):

@@ -32,8 +32,8 @@ from tests.conftest import patch_web3_block_data
 class TestTransact:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.second_address = Address(self.web3.eth.accounts[1])
         self.third_address = Address(self.web3.eth.accounts[2])
         self.token = DSToken.deploy(self.web3, 'ABC')
@@ -91,35 +91,35 @@ class TestTransact:
         receipt = self.token.transfer(self.second_address, Wad(500)).transact()
 
         # then
-        assert 100000 <= self.web3.eth.getTransaction(receipt.transaction_hash)['gas'] <= 1200000
+        assert 100000 <= self.web3.eth.get_transaction(receipt.transaction_hash)['gas'] <= 1200000
 
     def test_default_gas_async(self):
         # when
         receipt = synchronize([self.token.transfer(self.second_address, Wad(500)).transact_async()])[0]
 
         # then
-        assert 100000 <= self.web3.eth.getTransaction(receipt.transaction_hash)['gas'] <= 1200000
+        assert 100000 <= self.web3.eth.get_transaction(receipt.transaction_hash)['gas'] <= 1200000
 
     def test_custom_gas(self):
         # when
         receipt = self.token.transfer(self.second_address, Wad(500)).transact(gas=129995)
 
         # then
-        assert self.web3.eth.getTransaction(receipt.transaction_hash)['gas'] == 129995
+        assert self.web3.eth.get_transaction(receipt.transaction_hash)['gas'] == 129995
 
     def test_custom_gas_async(self):
         # when
         receipt = synchronize([self.token.transfer(self.second_address, Wad(500)).transact_async(gas=129995)])[0]
 
         # then
-        assert self.web3.eth.getTransaction(receipt.transaction_hash)['gas'] == 129995
+        assert self.web3.eth.get_transaction(receipt.transaction_hash)['gas'] == 129995
 
     def test_custom_gas_buffer(self):
         # when
         receipt = self.token.transfer(self.second_address, Wad(500)).transact(gas_buffer=2500000)
 
         # then
-        assert self.web3.eth.getTransaction(receipt.transaction_hash)['gas'] > 2500000
+        assert self.web3.eth.get_transaction(receipt.transaction_hash)['gas'] > 2500000
 
     def test_gas_and_gas_buffer_not_allowed_at_the_same_time(self):
         # expect
@@ -140,7 +140,7 @@ class TestTransact:
         self.token.transfer(self.second_address, Wad(500)).transact(gas_strategy=gas_price)
 
         # then
-        assert self.web3.eth.getBlock('latest', full_transactions=True).transactions[0].gasPrice == gas_price.gas_price
+        assert self.web3.eth.get_block('latest', full_transactions=True).transactions[0].gasPrice == gas_price.gas_price
 
     def test_custom_gas_price_async(self):
         # given
@@ -150,7 +150,7 @@ class TestTransact:
         synchronize([self.token.transfer(self.second_address, Wad(500)).transact_async(gas_strategy=gas_price)])
 
         # then
-        assert self.web3.eth.getBlock('latest', full_transactions=True).transactions[0].gasPrice == gas_price.gas_price
+        assert self.web3.eth.get_block('latest', full_transactions=True).transactions[0].gasPrice == gas_price.gas_price
 
     def test_custom_from_address(self):
         # given
@@ -160,7 +160,7 @@ class TestTransact:
         receipt = self.token.transfer(self.our_address, Wad(250)).transact(from_address=self.second_address)
 
         # then
-        assert Address(self.web3.eth.getTransaction(receipt.transaction_hash)['from']) == self.second_address
+        assert Address(self.web3.eth.get_transaction(receipt.transaction_hash)['from']) == self.second_address
 
     def test_name_formatting(self):
         # given
@@ -215,8 +215,8 @@ class TestTransact:
 class TestTransactReplace:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.second_address = Address(self.web3.eth.accounts[1])
         self.third_address = Address(self.web3.eth.accounts[2])
         self.token = DSToken.deploy(self.web3, 'ABC')
@@ -226,13 +226,13 @@ class TestTransactReplace:
     @pytest.mark.asyncio
     async def test_transaction_replace(self):
         # given
-        original_send_transaction = self.web3.eth.sendTransaction
-        original_get_transaction = self.web3.eth.getTransaction
-        nonce = self.web3.eth.getTransactionCount(self.our_address.address)
+        original_send_transaction = self.web3.eth.send_transaction
+        original_get_transaction = self.web3.eth.get_transaction
+        nonce = self.web3.eth.get_transaction_count(self.our_address.address)
 
         # when
-        self.web3.eth.sendTransaction = MagicMock(return_value='0xaaaaaaaaaabbbbbbbbbbccccccccccdddddddddd')
-        self.web3.eth.getTransaction = MagicMock(return_value={'nonce': nonce})
+        self.web3.eth.send_transaction = MagicMock(return_value='0xaaaaaaaaaabbbbbbbbbbccccccccccdddddddddd')
+        self.web3.eth.get_transaction = MagicMock(return_value={'nonce': nonce})
         # and
         transact_1 = self.token.transfer(self.second_address, Wad(500))
         future_receipt_1 = asyncio.ensure_future(transact_1.transact_async(gas_strategy=FixedGasPrice(1, None, None)))
@@ -243,8 +243,8 @@ class TestTransactReplace:
         assert self.token.balance_of(self.second_address) == Wad(0)
 
         # when
-        self.web3.eth.sendTransaction = original_send_transaction
-        self.web3.eth.getTransaction = original_get_transaction
+        self.web3.eth.send_transaction = original_send_transaction
+        self.web3.eth.get_transaction = original_get_transaction
         # and
         transact_2 = self.token.transfer(self.third_address, Wad(700))
         # FIXME: Ganache produces a "the tx doesn't have the correct nonce" error.
@@ -268,7 +268,7 @@ class TestTransactReplace:
     @pytest.mark.timeout(10)
     def test_transaction_replace_of_failed_transaction(self):
         # given
-        original_send_transaction = self.web3.eth.sendTransaction
+        original_send_transaction = self.web3.eth.send_transaction
 
         # when
         transact_1 = self.token.transfer(self.second_address, Wad(2000000))  # more than we minted
@@ -288,7 +288,7 @@ class TestTransactReplace:
             transaction_without_nonce = {key: transaction[key] for key in transaction if key != 'nonce'}
             return original_send_transaction(transaction_without_nonce)
 
-        self.web3.eth.sendTransaction = MagicMock(side_effect=second_send_transaction)
+        self.web3.eth.send_transaction = MagicMock(side_effect=second_send_transaction)
         # when
         transact_2 = self.token.transfer(self.second_address, Wad(500))
         receipt_2 = transact_2.transact(replace=transact_1)

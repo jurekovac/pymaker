@@ -73,8 +73,8 @@ class GeneralMarketTest:
         logging.getLogger("asyncio").setLevel(logging.INFO)
 
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
 
         self.price_oracle = OasisMockPriceOracle.deploy(self.web3)
         self.price_oracle.set_price(Wad.from_number(10))
@@ -231,11 +231,11 @@ class GeneralMarketTest:
                       token2_val, Wad.from_number(2)).transact()
 
         # and
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[1]
+        self.web3.eth.default_account = self.web3.eth.accounts[1]
         self.otc.approve([self.token1], directly())
         self.otc.make(token1_val, Wad.from_number(1),
                       token2_val, Wad.from_number(2)).transact()
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
 
         # then
         assert len(self.otc.get_orders()) == 2
@@ -665,8 +665,8 @@ class TestMatchingMarketWithSupportContract(TestMatchingMarket):
 class TestMatchingMarketDecimal:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.token1 = DSToken.deploy(self.web3, 'AAA')
         self.token1_tokenclass = Token('AAA', self.token1.address, 18)
         self.token1.mint(Wad.from_number(10000)).transact()
@@ -704,8 +704,8 @@ class TestMatchingMarketDecimal:
 class TestMatchingMarketPosition:
     def setup_method(self):
         self.web3 = Web3(HTTPProvider("http://localhost:8555"))
-        self.web3.eth.defaultAccount = self.web3.eth.accounts[0]
-        self.our_address = Address(self.web3.eth.defaultAccount)
+        self.web3.eth.default_account = self.web3.eth.accounts[0]
+        self.our_address = Address(self.web3.eth.default_account)
         self.token1 = DSToken.deploy(self.web3, 'AAA')
         self.token1.mint(Wad.from_number(10000)).transact()
         self.token1_tokenclass = Token('AAA', self.token1.address, 18)

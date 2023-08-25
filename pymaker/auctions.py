@@ -93,7 +93,7 @@ class AuctionContract(Contract):
         return Address(self._contract.functions.vat().call())
 
     def get_past_lognotes(self, abi: list, from_block: int, to_block: int = None, chunk_size=20000) -> List[LogNote]:
-        current_block = self._contract.web3.eth.blockNumber
+        current_block = self._contract.web3.eth.block_number
         assert isinstance(from_block, int)
         assert from_block < current_block
         if to_block is None:
@@ -122,7 +122,7 @@ class AuctionContract(Contract):
             logger.debug(f"Querying logs from block {start} to {end} ({end-start} blocks); "
                          f"accumulated {len(events)} events in {chunks_queried-1} requests")
 
-            logs = self.web3.eth.getLogs(filter_params)
+            logs = self.web3.eth.get_logs(filter_params)
             events.extend(list(map(lambda l: self.parse_event(l), logs)))
             start += chunk_size
 
@@ -139,7 +139,7 @@ class DealableAuctionContract(AuctionContract):
         def __init__(self, lognote: LogNote):
             # This is whoever called `deal`, which could differ from the `guy` who won the auction
             self.usr = Address(lognote.usr)
-            self.id = Web3.toInt(lognote.arg1)
+            self.id = Web3.to_int(lognote.arg1)
             self.block = lognote.block
             self.tx_hash = lognote.tx_hash
 
@@ -276,9 +276,9 @@ class Flipper(DealableAuctionContract):
     class TendLog:
         def __init__(self, lognote: LogNote):
             self.guy = Address(lognote.usr)
-            self.id = Web3.toInt(lognote.arg1)
-            self.lot = Wad(Web3.toInt(lognote.arg2))
-            self.bid = Rad(Web3.toInt(lognote.get_bytes_at_index(2)))
+            self.id = Web3.to_int(lognote.arg1)
+            self.lot = Wad(Web3.to_int(lognote.arg2))
+            self.bid = Rad(Web3.to_int(lognote.get_bytes_at_index(2)))
             self.block = lognote.block
             self.tx_hash = lognote.tx_hash
 
@@ -288,9 +288,9 @@ class Flipper(DealableAuctionContract):
     class DentLog:
         def __init__(self, lognote: LogNote):
             self.guy = Address(lognote.usr)
-            self.id = Web3.toInt(lognote.arg1)
-            self.lot = Wad(Web3.toInt(lognote.arg2))
-            self.bid = Rad(Web3.toInt(lognote.get_bytes_at_index(2)))
+            self.id = Web3.to_int(lognote.arg1)
+            self.lot = Wad(Web3.to_int(lognote.arg2))
+            self.bid = Rad(Web3.to_int(lognote.get_bytes_at_index(2)))
             self.block = lognote.block
             self.tx_hash = lognote.tx_hash
 
@@ -355,7 +355,7 @@ class Flipper(DealableAuctionContract):
         return history
 
     def parse_event(self, event):
-        signature = Web3.toHex(event['topics'][0])
+        signature = Web3.to_hex(event['topics'][0])
         codec = ABICodec(default_registry)
         if signature == "0xc84ce3a1172f0dec3173f04caaa6005151a4bfe40d4c9f3ea28dba5f719b2a7a":
             event_data = get_event_data(codec, self.kick_abi, event)
@@ -424,9 +424,9 @@ class Flapper(DealableAuctionContract):
     class TendLog:
         def __init__(self, lognote: LogNote):
             self.guy = Address(lognote.usr)
-            self.id = Web3.toInt(lognote.arg1)
-            self.lot = Rad(Web3.toInt(lognote.arg2))
-            self.bid = Wad(Web3.toInt(lognote.get_bytes_at_index(2)))
+            self.id = Web3.to_int(lognote.arg1)
+            self.lot = Rad(Web3.to_int(lognote.arg2))
+            self.bid = Wad(Web3.to_int(lognote.get_bytes_at_index(2)))
             self.block = lognote.block
             self.tx_hash = lognote.tx_hash
 
@@ -488,7 +488,7 @@ class Flapper(DealableAuctionContract):
         return history
 
     def parse_event(self, event):
-        signature = Web3.toHex(event['topics'][0])
+        signature = Web3.to_hex(event['topics'][0])
         codec = ABICodec(default_registry)
         if signature == "0xe6dde59cbc017becba89714a037778d234a84ce7f0a137487142a007e580d609":
             event_data = get_event_data(codec, self.kick_abi, event)
@@ -558,9 +558,9 @@ class Flopper(DealableAuctionContract):
     class DentLog:
         def __init__(self, lognote: LogNote):
             self.guy = Address(lognote.usr)
-            self.id = Web3.toInt(lognote.arg1)
-            self.lot = Wad(Web3.toInt(lognote.arg2))
-            self.bid = Rad(Web3.toInt(lognote.get_bytes_at_index(2)))
+            self.id = Web3.to_int(lognote.arg1)
+            self.lot = Wad(Web3.to_int(lognote.arg2))
+            self.bid = Rad(Web3.to_int(lognote.get_bytes_at_index(2)))
             self.block = lognote.block
             self.tx_hash = lognote.tx_hash
 
@@ -630,7 +630,7 @@ class Flopper(DealableAuctionContract):
         return history
 
     def parse_event(self, event):
-        signature = Web3.toHex(event['topics'][0])
+        signature = Web3.to_hex(event['topics'][0])
         codec = ABICodec(default_registry)
         if signature == "0x7e8881001566f9f89aedb9c5dc3d856a2b81e5235a8196413ed484be91cc0df6":
             event_data = get_event_data(codec, self.kick_abi, event)
@@ -748,7 +748,7 @@ class Clipper(AuctionContract):
 
     def ilk_name(self) -> str:
         ilk = self._contract.functions.ilk().call()
-        return Web3.toText(ilk.strip(bytes(1)))
+        return Web3.to_text(ilk.strip(bytes(1)))
 
     def buf(self) -> Ray:
         """Multiplicative factor to increase starting price"""
@@ -821,7 +821,7 @@ class Clipper(AuctionContract):
         if our_address:
             assert isinstance(our_address, Address)
         else:
-            our_address = Address(self.web3.eth.defaultAccount)
+            our_address = Address(self.web3.eth.default_account)
 
         (done, price, lot, tab) = self.status(id)
         assert not done
@@ -861,7 +861,7 @@ class Clipper(AuctionContract):
         if who:
             assert isinstance(who, Address)
         else:
-            who = Address(self.web3.eth.defaultAccount)
+            who = Address(self.web3.eth.default_account)
 
         return Transact(self, self.web3, self.abi, self.address, self._contract, 'take',
                         [id, amt.value, max.value, who.address, data])
@@ -877,7 +877,7 @@ class Clipper(AuctionContract):
         if kpr:
             assert isinstance(kpr, Address)
         else:
-            kpr = Address(self.web3.eth.defaultAccount)
+            kpr = Address(self.web3.eth.default_account)
 
         return Transact(self, self.web3, self.abi, self.address, self._contract, 'redo', [id, kpr.address])
 
@@ -901,7 +901,7 @@ class Clipper(AuctionContract):
         return history
 
     def parse_event(self, event):
-        signature = Web3.toHex(event['topics'][0])
+        signature = Web3.to_hex(event['topics'][0])
         codec = ABICodec(default_registry)
         if signature == "0x7c5bfdc0a5e8192f6cd4972f382cec69116862fb62e6abff8003874c58e064b8":
             event_data = get_event_data(codec, self.kick_abi, event)
@@ -918,7 +918,7 @@ class Clipper(AuctionContract):
 
     def _get_sender_for_eventlog(self, event_data) -> Address:
         tx_hash = event_data['transactionHash'].hex()
-        receipt = self.web3.eth.getTransactionReceipt(tx_hash)
+        receipt = self.web3.eth.get_transaction_receipt(tx_hash)
         return Address(receipt['from'])
 
     def __repr__(self):

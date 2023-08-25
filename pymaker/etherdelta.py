@@ -427,7 +427,7 @@ class EtherDelta(Contract):
         signature = eth_sign(order_hash, self.web3)
         v, r, s = to_vrs(signature)
 
-        return Order(self, Address(self.web3.eth.defaultAccount), pay_token, pay_amount, buy_token, buy_amount,
+        return Order(self, Address(self.web3.eth.default_account), pay_token, pay_amount, buy_token, buy_amount,
                      expires, nonce, v, r, s)
 
     def amount_available(self, order: Order) -> Wad:
@@ -543,7 +543,7 @@ class EtherDelta(Contract):
                                                order.r if hasattr(order, 'r') else bytes(),
                                                order.s if hasattr(order, 's') else bytes(),
                                                amount.value,
-                                               self.web3.eth.defaultAccount).call()
+                                               self.web3.eth.default_account).call()
 
     def cancel_order(self, order: Order) -> Transact:
         """Cancels an existing order.

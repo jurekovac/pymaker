@@ -41,8 +41,8 @@ class FailingTransact:
 def setup_module():
     global web3, our_address, second_address, third_address
     web3 = Web3(HTTPProvider("http://localhost:8555"))
-    web3.eth.defaultAccount = web3.eth.accounts[0]
-    our_address = Address(web3.eth.defaultAccount)
+    web3.eth.default_account = web3.eth.accounts[0]
+    our_address = Address(web3.eth.default_account)
     second_address = Address(web3.eth.accounts[1])
     third_address = Address(web3.eth.accounts[2])
 
@@ -86,7 +86,7 @@ def test_direct_approval_should_obey_gas_price():
     directly(gas_strategy=FixedGasPrice(25000000000))(token, second_address, "some-name")
 
     # then
-    assert web3.eth.getBlock('latest', full_transactions=True).transactions[0].gasPrice == 25000000000
+    assert web3.eth.get_block('latest', full_transactions=True).transactions[0].gasPrice == 25000000000
 
 
 def test_direct_approval_should_not_approve_if_already_approved():
@@ -132,7 +132,7 @@ def test_via_tx_manager_approval_should_obey_gas_price():
     via_tx_manager(tx, gas_strategy=FixedGasPrice(15000000000))(token, second_address, "some-name")
 
     # then
-    assert web3.eth.getBlock('latest', full_transactions=True).transactions[0].gasPrice == 15000000000
+    assert web3.eth.get_block('latest', full_transactions=True).transactions[0].gasPrice == 15000000000
 
 
 def test_via_tx_manager_approval_should_not_approve_if_already_approved():
