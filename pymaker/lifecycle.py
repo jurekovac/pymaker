@@ -433,11 +433,13 @@ class Lifecycle:
                     time.sleep(0.05)
 
         def new_block_watch_subscribe():
+            self.logger.error(f"Lifecycle: new_block_watch_subscribe started")
 
             async def get_event():
 
                 while True:
                     if self.terminated_internally or self.terminated_externally:
+                        self.logger.error(f"Lifecycle: terminated internally: {self.terminated_internally}, or externally: {self.terminated_externally}.")
                         break
 
                     if hasattr(self.web3.provider, 'endpoint_uri'):
@@ -450,7 +452,7 @@ class Lifecycle:
                     self.logger.info(f"connecting to: {endpoint_uri}")
                     async with connect(endpoint_uri) as ws:
                         await ws.send(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "eth_subscribe", "params": ["newHeads"]}))
-                        subscription_response = await ws.recv()
+                        subscription_response = await asyncio.wait_for(ws.recv(), timeout=20.0)
                         self.logger.info(f"subscribed to newHeads. Response: {subscription_response}")
                         while True:
                             if self.terminated_internally or self.terminated_externally:
@@ -471,8 +473,11 @@ class Lifecycle:
                                 self.logger.error(f"Lifecycle Exception: {err}")
                                 self.terminated_internally = True
                                 break
+                    self.logger.error(f"Lifecycle: with connect finished.")
+                self.logger.error(f"Lifecycle: get_event loop finished.")
 
             asyncio.new_event_loop().run_until_complete(get_event())
+            self.logger.error(f"Lifecycle: new_block_watch_subscribe finished.")
 
         if self.block_function:
             self._on_block_callback = AsyncCallback(self.block_function)
