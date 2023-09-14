@@ -384,7 +384,7 @@ class Vat(Contract):
         Returns:
             Unordered list of past `LogFork`, `LogFrob`, and `LogMove` events.
         """
-        current_block = self._contract.web3.eth.block_number
+        current_block = self._contract.w3.eth.block_number
         assert isinstance(from_block, int)
         assert from_block <= current_block
         if to_block is None:

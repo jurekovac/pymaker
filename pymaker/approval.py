@@ -86,7 +86,7 @@ def hope_directly(**kwargs):
             logger = logging.getLogger()
             logger.info(f"Approving {spender_name} ({spender_address}) to move our {token.address} directly")
 
-            hope = Transact(move_contract, move_contract.web3, move_contract.abi, Address(move_contract.address),
+            hope = Transact(move_contract, move_contract.w3, move_contract.abi, Address(move_contract.address),
                             move_contract, 'hope', [spender_address.address])
 
             if not hope.transact(**kwargs):

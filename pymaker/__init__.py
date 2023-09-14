@@ -22,6 +22,7 @@ import re
 import requests
 import sys
 import time
+import traceback
 from enum import Enum, auto
 from functools import total_ordering, wraps
 from pprint import pprint
@@ -259,7 +260,7 @@ class Contract:
         return web3.eth.contract(abi=abi)(address=address.address)
 
     def _past_events(self, contract, event, cls, number_of_past_blocks, event_filter) -> list:
-        block_number = contract.web3.eth.block_number
+        block_number = contract.w3.eth.block_number
         return self._past_events_in_block_range(contract, event, cls, max(block_number-number_of_past_blocks, 0),
                                                 block_number, event_filter)
 
@@ -477,7 +478,7 @@ class Transact:
                  parameters: Optional[list],
                  extra: Optional[dict] = None,
                  result_function=None,
-                 name = None):
+                 name=None):
         assert(isinstance(origin, object) or (origin is None))
         assert(isinstance(web3, Web3) or (web3 is None))
         assert(isinstance(abi, list) or (abi is None))
@@ -511,7 +512,7 @@ class Transact:
         assert(isinstance(web3, Web3) or web3 is None)
         self.web3 = web3
         if self.contract is not None:
-            self.contract.web3 = web3
+            self.contract.w3 = web3
 
     def _get_receipt(self, transaction_hash: str) -> Optional[Receipt]:
         try:
@@ -598,7 +599,7 @@ class Transact:
         if self.contract is not None:
             if self.function_name is None:
                 if send_raw:
-                    prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **{'to': self.address.address,'data': self.parameters[0]}})
+                    prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **{'to': self.address.address, 'data': self.parameters[0]}})
                     signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
                     return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
                 else:
@@ -720,20 +721,13 @@ class Transact:
         """
         assert(isinstance(from_address, Address))
 
-        if self.contract is not None:
-            if self.function_name is None:
-                return self.web3.eth.estimate_gas({**self._as_dict(self.extra),
-                                                  **{'from': from_address.address,
-                                                     'to': self.address.address,
-                                                     'data': self.parameters[0]}},
-                                                 block_identifier=block_identifier)
-
-            else:
-                estimate = self._contract_function().estimate_gas({**self._as_dict(self.extra), **{'from': from_address.address}},
-                                                                 block_identifier=block_identifier)
-
+        if self.contract and self.function_name:
+            estimate = self._contract_function().estimate_gas({**self._as_dict(self.extra), **{'from': from_address.address}}, block_identifier=block_identifier)
         else:
-            estimate = 21000
+            tx_params = {**self._as_dict(self.extra), 'from': from_address.address, 'to': self.address.address}
+            if len(self.parameters) == 1:
+                tx_params['data'] = self.parameters[0]
+            return self.web3.eth.estimate_gas(transaction=tx_params, block_identifier=block_identifier)
 
         return estimate
 
@@ -806,15 +800,20 @@ class Transact:
         # do not increment the nonce. If the estimation is successful, we pass the calculated
         # gas value (plus some `gas_buffer`) to the subsequent `transact` calls so it does not
         # try to estimate it again.
-        try:
-            gas_estimate = self.estimated_gas(Address(from_account))
-        except:
-            if Transact.gas_estimate_for_bad_txs:
-                self.logger.warning(f"Transaction {self.name()} will fail, submitting anyway")
-                gas_estimate = Transact.gas_estimate_for_bad_txs
-            else:
-                self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({sys.exc_info()[1]})")
-                return None
+
+        if kwargs.get('gas') is None:
+            try:
+                gas_estimate = self.estimated_gas(Address(from_account))
+            except Exception as err:
+                if Transact.gas_estimate_for_bad_txs:
+                    self.logger.warning(f"Transaction {self.name()} will fail, submitting anyway")
+                    gas_estimate = Transact.gas_estimate_for_bad_txs
+                else:
+                    # self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({sys.exc_info()[1]})")
+                    self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({err})")
+                    return None
+        else:
+            gas_estimate = None
 
         # Get or calculate `gas`. Get `gas_strategy`, which in fact refers to a gas pricing algorithm.
         gas = self._gas(gas_estimate, **kwargs)

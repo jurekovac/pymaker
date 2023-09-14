@@ -93,7 +93,7 @@ class AuctionContract(Contract):
         return Address(self._contract.functions.vat().call())
 
     def get_past_lognotes(self, abi: list, from_block: int, to_block: int = None, chunk_size=20000) -> List[LogNote]:
-        current_block = self._contract.web3.eth.block_number
+        current_block = self._contract.w3.eth.block_number
         assert isinstance(from_block, int)
         assert from_block < current_block
         if to_block is None:

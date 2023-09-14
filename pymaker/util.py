@@ -117,7 +117,7 @@ class AsyncCallback:
         self.callback = callback
         self.thread = None
 
-    def trigger(self, on_start=None, on_finish=None) -> bool:
+    def trigger(self, on_start=None, on_finish=None, *args, **kwargs) -> bool:
         """Invokes the callback in a separate thread, unless one is already running.
 
         If callback isn't currently running, invokes it in a separate thread and returns `True`.
@@ -136,7 +136,7 @@ class AsyncCallback:
             def thread_target():
                 if on_start is not None:
                     on_start()
-                self.callback()
+                self.callback(*args, **kwargs)
                 if on_finish is not None:
                     on_finish()
 

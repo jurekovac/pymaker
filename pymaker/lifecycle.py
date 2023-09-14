@@ -26,7 +26,7 @@ import asyncio
 
 import pytz
 from pymaker.sign import eth_sign
-from web3 import Web3
+from web3 import Web3, AsyncWeb3, WebsocketProviderV2
 from web3.exceptions import BlockNotFound, BlockNumberOutofRange
 from web3.types import HexBytes
 
@@ -116,16 +116,16 @@ class Lifecycle:
     def __exit__(self, exc_type, exc_val, exc_tb):
         # Initialization phase
         if self.web3:
-            self.logger.info(f"Keeper connected to {self.web3.provider}")
+            self.logger.info(f"Lifecycle: Keeper connected to {self.web3.provider}")
             if self.web3.eth.default_account and self.web3.eth.default_account != "0x0000000000000000000000000000000000000000":
-                self.logger.info(f"Keeper operating as {self.web3.eth.default_account}")
+                self.logger.info(f"Lifecycle: Keeper operating as {self.web3.eth.default_account}")
                 self._check_account_unlocked()
             else:
-                self.logger.info(f"Keeper not operating as any particular account")
+                self.logger.info(f"Lifecycle: Keeper not operating as any particular account")
                 # web3 calls do not work correctly if defaultAccount is empty
                 self.web3.eth.default_account = "0x0000000000000000000000000000000000000000"
         else:
-            self.logger.info(f"Keeper initializing")
+            self.logger.info(f"Lifecycle: Keeper initializing")
 
         # Wait for sync and peers
         if self.web3 and self.do_wait_for_sync:
@@ -133,12 +133,12 @@ class Lifecycle:
 
         # Initial delay
         if self.delay > 0:
-            self.logger.info(f"Waiting for {self.delay} seconds of initial delay...")
+            self.logger.info(f"Lifecycle: Waiting for {self.delay} seconds of initial delay...")
             time.sleep(self.delay)
 
         # Initial checks
         if len(self.wait_for_functions) > 0:
-            self.logger.info("Waiting for initial checks to pass...")
+            self.logger.info("Lifecycle: Waiting for initial checks to pass...")
 
             for index, (wait_for_function, max_wait) in enumerate(self.wait_for_functions, start=1):
                 start_time = time.time()
@@ -146,21 +146,21 @@ class Lifecycle:
                     try:
                         result = wait_for_function()
                     except Exception as e:
-                        self.logger.exception(f"Initial check #{index} failed with an exception: '{e}'")
+                        self.logger.exception(f"Lifecycle: Initial check #{index} failed with an exception: '{e}'")
                         result = False
 
                     if result:
                         break
 
                     if time.time() - start_time >= max_wait:
-                        self.logger.warning(f"Initial check #{index} took more than {max_wait} seconds to pass, skipping")
+                        self.logger.warning(f"Lifecycle: Initial check #{index} took more than {max_wait} seconds to pass, skipping")
                         break
 
                     time.sleep(0.1)
 
         # Startup phase
         if self.startup_function:
-            self.logger.info("Executing keeper startup logic")
+            self.logger.info("Lifecycle: Executing keeper startup logic")
             self.startup_function()
 
         # Bind `on_block`, bind `every`
@@ -170,36 +170,36 @@ class Lifecycle:
         self._main_loop()
 
         # Enter shutdown process
-        self.logger.info("Shutting down the keeper")
+        self.logger.info("Lifecycle: Shutting down the keeper")
 
         # Disable all filters
         if any_filter_thread_present():
-            self.logger.info("Waiting for all threads to terminate...")
+            self.logger.info("Lifecycle: Waiting for all threads to terminate...")
             stop_all_filter_threads()
 
         # If the `on_block` callback is still running, wait for it to terminate
         if self._on_block_callback is not None:
-            self.logger.info("Waiting for outstanding callback to terminate...")
+            self.logger.info("Lifecycle: Waiting for outstanding callback to terminate...")
             self._on_block_callback.wait()
 
         # If any every (timer) callback is still running, wait for it to terminate
         if len(self.every_timers) > 0:
-            self.logger.info("Waiting for outstanding timers to terminate...")
+            self.logger.info("Lifecycle: Waiting for outstanding timers to terminate...")
             for timer in self.every_timers:
                 timer[1].wait()
 
         # If any event callback is still running, wait for it to terminate
         if len(self.event_timers) > 0:
-            self.logger.info("Waiting for outstanding events to terminate...")
+            self.logger.info("Lifecycle: Waiting for outstanding events to terminate...")
             for timer in self.event_timers:
                 timer[2].wait()
 
         # Shutdown phase
         if self.shutdown_function:
-            self.logger.info("Executing keeper shutdown logic...")
+            self.logger.info("Lifecycle: Executing keeper shutdown logic...")
             self.shutdown_function()
-            self.logger.info("Shutdown logic finished")
-        self.logger.info("Keeper terminated")
+            self.logger.info("Lifecycle: Shutdown logic finished")
+        self.logger.info("Lifecycle: Keeper terminated")
         # exit(10 if self.fatal_termination else 0)
 
     def _wait_for_init(self):
@@ -212,11 +212,11 @@ class Lifecycle:
         if not self.skip_peer_check:
             try:
                 if self.web3.net.peer_count == 0:
-                    self.logger.info(f"Waiting for the node to have at least one peer...")
+                    self.logger.info(f"Lifecycle: Waiting for the node to have at least one peer...")
                     while self.web3.net.peer_count == 0:
                         time.sleep(0.25)
                         if self.terminated_internally or self.terminated_externally:
-                            self.logger.info(f"terminated...")
+                            self.logger.info(f"Lifecycle: terminated...")
                             break
             except Exception as err:
                 if 'unauthorized method' in str(err).lower():
@@ -229,11 +229,11 @@ class Lifecycle:
         if not self.skip_syncing_check:
             try:
                 if self.web3.eth.syncing:
-                    self.logger.info(f"Waiting for the node to sync...")
+                    self.logger.info(f"Lifecycle: Waiting for the node to sync...")
                     while self.web3.eth.syncing:
                         time.sleep(0.25)
                         if self.terminated_internally or self.terminated_externally:
-                            self.logger.info(f"terminated...")
+                            self.logger.info(f"Lifecycle: terminated...")
                             break
             except Exception as err:
                 if 'unauthorized method' in str(err).lower():
@@ -245,8 +245,8 @@ class Lifecycle:
         try:
             eth_sign(bytes("pymaker testing if account is unlocked", "utf-8"), self.web3)
         except:
-            self.logger.exception(f"Account {self.web3.eth.default_account} is not unlocked and no private key supplied for it")
-            self.logger.fatal(f"Unlocking the account or providing the private key is necessary for the keeper to operate")
+            self.logger.exception(f"Lifecycle: Account {self.web3.eth.default_account} is not unlocked and no private key supplied for it")
+            self.logger.fatal(f"Lifecycle: Unlocking the account or providing the private key is necessary for the keeper to operate")
             exit(-1)
 
     def wait_for_sync(self, wait_for_sync: bool):
@@ -308,6 +308,8 @@ class Lifecycle:
 
     def terminate(self, message=None):
         if message is not None:
+            if 'Lifecycle' not in message:
+                message = f"Lifecycle: {message}"
             self.logger.warning(message)
 
         self.terminated_internally = True
@@ -351,50 +353,58 @@ class Lifecycle:
 
     def _sigint_sigterm_handler(self, sig, frame):
         if self.terminated_externally:
-            self.logger.warning("Graceful keeper termination due to SIGINT/SIGTERM already in progress")
+            self.logger.warning("Lifecycle: Graceful keeper termination due to SIGINT/SIGTERM already in progress")
         else:
-            self.logger.warning("Keeper received SIGINT/SIGTERM signal, will terminate gracefully")
+            self.logger.warning("Lifecycle: Keeper received SIGINT/SIGTERM signal, will terminate gracefully")
             self.terminated_externally = True
 
     def _start_watching_blocks(self):
-        def new_block_callback(block_hash):
-            block_number = None
+        def new_block_callback(block_hash, block_number=None):
             try:
                 self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
-                block = self.web3.eth.get_block(block_hash)
-                if block_hash == 'latest':
-                    block_hash = block['hash']
-                block_number = block['number']
-                # print(f"new_block: {block_number}")
+
+                """ check node syncing """
                 if self.skip_syncing_check:
                     is_syncing = False
                 else:
                     is_syncing = self.web3.eth.syncing
+                hash_str = block_hash.hex() if isinstance(block_hash, HexBytes) else block_hash
+                if is_syncing:
+                    self.logger.info(f"Lifecycle: Ignoring block #{block_number} ({hash_str}), as the node is syncing")
+                    return
 
-                if not is_syncing:
+                max_block_number = None
+                if block_number:
                     max_block_number = self.web3.eth.block_number
-                    if block_number >= max_block_number:
-                        def on_start():
-                            self.logger.debug(f"Processing block #{block_number} ({block_hash.hex()})")
+                    if block_number < max_block_number:
+                        self.logger.debug(f"Lifecycle: Ignoring block #{block_number} ({hash_str}), as there is already block #{max_block_number} available")
+                        return
 
-                        def on_finish():
-                            self.logger.debug(f"Finished processing block #{block_number} ({block_hash.hex()})")
+                if block_number is None or block_hash == 'latest':
+                    block = self.web3.eth.get_block(block_hash)
+                    if block_hash == 'latest':
+                        block_hash = block['hash']
+                    block_number = block['number']
+                    max_block_number = self.web3.eth.block_number
 
-                        if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
-                            if not self._on_block_callback.trigger(on_start, on_finish):
-                                self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
-                                                  f" as previous callback is still running")
-                            self._on_block_callback.wait()
-                        else:
-                            self.logger.debug(f"Ignoring block #{block_number} as keeper is already terminating")
-                    else:
-                        self.logger.debug(f"Ignoring block #{block_number} ({block_hash.hex()}),"
-                                          f" as there is already block #{max_block_number} available")
+                if block_number < max_block_number:
+                    self.logger.debug(f"Lifecycle: Ignoring block #{block_number} ({block_hash.hex()}), as there is already block #{max_block_number} available")
+                    return
+
+                def on_start():
+                    self.logger.debug(f"Lifecycle: Processing block #{block_number} ({block_hash.hex()})")
+
+                def on_finish():
+                    self.logger.debug(f"Lifecycle: Finished processing block #{block_number} ({block_hash.hex()})")
+
+                if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
+                    if not self._on_block_callback.trigger(on_start, on_finish, block_number):
+                        self.logger.debug(f"Lifecycle: Ignoring block #{block_number} ({block_hash.hex()}), as previous callback is still running")
+                    self._on_block_callback.wait()
                 else:
-                    self.logger.info(f"Ignoring block #{block_number} ({block_hash.hex()}), as the node is syncing")
+                    self.logger.debug(f"Lifecycle: Ignoring block #{block_number} as keeper is already terminating")
             except Exception as err:
-                # print(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
-                self.logger.warning(f"Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
+                self.logger.warning(f"Lifecycle: Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
                 msg = ""
                 for t in traceback.format_tb(err.__traceback__):
                     t = t.replace("\n", ":")
@@ -402,11 +412,9 @@ class Lifecycle:
                     msg += f"     {t}\n"
                 self.logger.info(f"{msg}")
 
-                # print(f"new_block: {block_number} end")
-
         def new_block_watch():
             event_filter = self.web3.eth.filter('latest')
-            self.logger.debug(f"Created event filter: {event_filter}")
+            self.logger.debug(f"Lifecycle: Created event filter: {event_filter}")
             while True:
                 if self.terminated_internally or self.terminated_externally:
                     break
@@ -419,11 +427,11 @@ class Lifecycle:
                         new_block_callback(block_hash)
                 except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
                     # print(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
-                    self.logger.warning(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
+                    self.logger.warning(f"Lifecycle: Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
                     event_filter = self.web3.eth.filter('latest')
                     time.sleep(0.5)
                 except Exception as err:
-                    self.logger.error(f"Lifecycle Exception: {err}")
+                    self.logger.error(f"Lifecycle: Exception: {err}")
                     self.terminated_internally = True
                     break
 
@@ -433,51 +441,55 @@ class Lifecycle:
                     time.sleep(0.05)
 
         def new_block_watch_subscribe():
-            self.logger.error(f"Lifecycle: new_block_watch_subscribe started")
+            self.logger.info(f"Lifecycle: new_block_watch_subscribe started")
 
             async def get_event():
 
-                while True:
+                if hasattr(self.web3.provider, 'endpoint_uri'):
+                    endpoint_uri = self.web3.provider.endpoint_uri
+                else:
+                    self.logger.error(f"Lifecycle Error: invalid web3 provider: {repr(self.web3.provider)}")
+                    self.terminated_internally = True
+                    return
+
+                self.logger.info(f"Lifecycle: connecting to: {endpoint_uri}")
+                async for w3ws in AsyncWeb3.persistent_websocket(WebsocketProviderV2(endpoint_uri, call_timeout=60)):
                     if self.terminated_internally or self.terminated_externally:
-                        self.logger.error(f"Lifecycle: terminated internally: {self.terminated_internally}, or externally: {self.terminated_externally}.")
+                        self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally}")
                         break
+                    if not await w3ws.is_connected():
+                        self.logger.log(f"Lifecycle: connecting provider to {endpoint_uri}")
+                        await w3ws.provider.connect()
+                    subscription_id = await w3ws.eth.subscribe("newHeads")
+                    self.logger.info(f"Lifecycle: subscribed to newHeads. Subscription id: {subscription_id}")
+                    while True:
+                        if self.terminated_internally or self.terminated_externally:
+                            self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally}")
+                            break
 
-                    if hasattr(self.web3.provider, 'endpoint_uri'):
-                        endpoint_uri = self.web3.provider.endpoint_uri
-                    else:
-                        self.logger.error(f"Lifecycle Error: invalid web3 provider: {repr(self.web3.provider)}")
-                        self.terminated_internally = True
-                        return
-
-                    self.logger.info(f"connecting to: {endpoint_uri}")
-                    async with connect(endpoint_uri) as ws:
-                        await ws.send(json.dumps({"jsonrpc": "2.0", "id": 1, "method": "eth_subscribe", "params": ["newHeads"]}))
-                        subscription_response = await asyncio.wait_for(ws.recv(), timeout=20.0)
-                        self.logger.info(f"subscribed to newHeads. Response: {subscription_response}")
-                        while True:
-                            if self.terminated_internally or self.terminated_externally:
-                                break
-
-                            try:
-                                message = await asyncio.wait_for(ws.recv(), timeout=60)
-                                block_hash = HexBytes(json.loads(message)['params']['result']['hash'])
+                        try:
+                            async for response in w3ws.listen_to_websocket():
+                                block_hash = HexBytes(response.get('hash'))
+                                block_number = int(response.get('number'), 16)
                                 # self.logger.info(f"new block hash: {block_hash.hex()}")
                                 if self.new_block_callback_use_latest:
                                     block_hash = 'latest'
-                                new_block_callback(block_hash)
-                            except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
-                                self.logger.warning(f"Node dropped event emitter; resubscribing: {type(ex)}: {ex}")
-                                time.sleep(0.5)
-                                break
-                            except Exception as err:
-                                self.logger.error(f"Lifecycle Exception: {err}")
-                                self.terminated_internally = True
-                                break
-                    self.logger.error(f"Lifecycle: with connect finished.")
-                self.logger.error(f"Lifecycle: get_event loop finished.")
+                                new_block_callback(block_hash, block_number)
+                        except asyncio.exceptions.TimeoutError as err:
+                            self.logger.warning(f"Lifecycle: timeout: {err}.")
+                        except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
+                            self.logger.warning(f"Lifecycle: Node dropped event emitter; resubscribing: {type(ex)}: {ex}")
+                            time.sleep(0.5)
+                            break
+                        except Exception as err:
+                            self.logger.error(f"Lifecycle: Exception: {err}")
+                            self.terminated_internally = True
+                            break
+                    self.logger.info(f"Lifecycle: subscribe newHeads finished.")
+                self.logger.info(f"Lifecycle: get_event loop finished.")
 
             asyncio.new_event_loop().run_until_complete(get_event())
-            self.logger.error(f"Lifecycle: new_block_watch_subscribe finished.")
+            self.logger.info(f"Lifecycle: new_block_watch_subscribe finished.")
 
         if self.block_function:
             self._on_block_callback = AsyncCallback(self.block_function)
@@ -491,7 +503,7 @@ class Lifecycle:
             block_filter.start()
             register_filter_thread(block_filter)
 
-            self.logger.info("Watching for new blocks")
+            self.logger.info("Lifecycle: Watching for new blocks")
 
     def _start_thread_safely(self, t: threading.Thread):
         delay = 10
@@ -501,7 +513,7 @@ class Lifecycle:
                 t.start()
                 break
             except Exception as e:
-                self.logger.critical(f"Failed to start a thread ({e}), trying again in {delay} seconds")
+                self.logger.critical(f"Lifecycle: Failed to start a thread ({e}), trying again in {delay} seconds")
                 time.sleep(delay)
 
     def _start_every_timers(self):
@@ -512,10 +524,10 @@ class Lifecycle:
             self._start_event_timer(idx, event_timer[0], event_timer[1], event_timer[2])
 
         if len(self.every_timers) > 0:
-            self.logger.info(f"Started {len(self.every_timers)} timer(s)")
+            self.logger.info(f"Lifecycle: Started {len(self.every_timers)} timer(s)")
 
         if len(self.event_timers) > 0:
-            self.logger.info(f"Started {len(self.event_timers)} event(s)")
+            self.logger.info(f"Lifecycle: Started {len(self.event_timers)} event(s)")
 
     def _start_every_timer(self, idx: int, frequency_in_seconds: int, callback):
         def setup_timer(delay):
@@ -528,15 +540,15 @@ class Lifecycle:
             try:
                 if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
                     def on_start():
-                        self.logger.debug(f"Processing the timer #{idx}")
+                        self.logger.debug(f"Lifecycle: Processing the timer #{idx}")
 
                     def on_finish():
-                        self.logger.debug(f"Finished processing the timer #{idx}")
+                        self.logger.debug(f"Lifecycle: Finished processing the timer #{idx}")
 
                     if not callback.trigger(on_start, on_finish):
-                        self.logger.debug(f"Ignoring timer #{idx} as previous one is already running")
+                        self.logger.debug(f"Lifecycle: Ignoring timer #{idx} as previous one is already running")
                 else:
-                    self.logger.debug(f"Ignoring timer #{idx} as keeper is already terminating")
+                    self.logger.debug(f"Lifecycle: Ignoring timer #{idx} as keeper is already terminating")
             except:
                 setup_timer(frequency_in_seconds)
                 raise
@@ -556,18 +568,18 @@ class Lifecycle:
                 try:
                     if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
                         def on_start():
-                            self.logger.debug(f"Processing the event #{idx}" if event_happened
+                            self.logger.debug(f"Lifecycle: Processing the event #{idx}" if event_happened
                                               else f"Processing the event #{idx} because of minimum frequency")
 
                         def on_finish():
-                            self.logger.debug(f"Finished processing the event #{idx}" if event_happened
+                            self.logger.debug(f"Lifecycle: Finished processing the event #{idx}" if event_happened
                                               else f"Finished processing the event #{idx} because of minimum frequency")
 
                         assert callback.trigger(on_start, on_finish)
                         callback.wait()
 
                     else:
-                        self.logger.debug(f"Ignoring event #{idx} as keeper is terminating" if event_happened
+                        self.logger.debug(f"Lifecycle: Ignoring event #{idx} as keeper is terminating" if event_happened
                                           else f"Ignoring event #{idx} because of minimum frequency as keeper is terminating")
                 except:
                     setup_thread()
@@ -592,12 +604,12 @@ class Lifecycle:
 
             # if the keeper logic asked us to terminate, we do so
             if self.terminated_internally:
-                self.logger.warning("Keeper logic asked for termination, the keeper will terminate")
+                self.logger.warning("Lifecycle: Keeper logic asked for termination, the keeper will terminate")
                 break
 
             # if SIGINT/SIGTERM asked us to terminate, we do so
             if self.terminated_externally:
-                self.logger.warning("The keeper is terminating due do SIGINT/SIGTERM signal received")
+                self.logger.warning("Lifecycle: The keeper is terminating due do SIGINT/SIGTERM signal received")
                 break
 
             # if any exception is raised in filter handling thread (could be an HTTP exception
@@ -605,7 +617,7 @@ class Lifecycle:
             # dysfunctional i.e. no new callbacks will ever be fired. we detect it and terminate
             # the keeper so it can be restarted.
             if not all_filter_threads_alive():
-                self.logger.fatal("One of filter threads is dead, the keeper will terminate")
+                self.logger.fatal("Lifecycle: One of filter threads is dead, the keeper will terminate")
                 self.fatal_termination = True
                 break
 
@@ -625,7 +637,7 @@ class Lifecycle:
                     is_syncing = self.web3.eth.syncing
 
                 if not is_syncing:
-                    self.logger.fatal("No new blocks received for 300 seconds, the keeper will terminate")
+                    self.logger.fatal("Lifecycle: No new blocks received for 300 seconds, the keeper will terminate")
                     self.fatal_termination = True
                     break
-        self.logger.warning("Keeper logic ended main loop")
+        self.logger.warning("Lifecycle: Keeper logic ended main loop")
