@@ -596,6 +596,7 @@ class Transact:
         elif send_raw:
             private_key = _registered_accounts.get((self.web3, Address(from_account))).privateKey
 
+        # TODO: use separate function for preparing transaction data, to be used here and in estimate_gas
         if self.contract is not None:
             if self.function_name is None:
                 if send_raw:
@@ -613,7 +614,7 @@ class Transact:
                     return bytes_to_hexstring(self._contract_function().transact(transaction_params))
         else:
             if send_raw:
-                prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **{'to': self.address.address}})
+                prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **{'to': self.address.address, 'data': self.parameters[0]}})
                 signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
                 return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
             else:
