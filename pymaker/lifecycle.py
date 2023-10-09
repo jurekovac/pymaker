@@ -470,8 +470,11 @@ class Lifecycle:
                         try:
                             async for response in w3ws.listen_to_websocket():
                                 block_hash = HexBytes(response.get('hash'))
-                                block_number = int(response.get('number'), 16)
-                                # self.logger.info(f"new block hash: {block_hash.hex()}")
+                                block_number_raw = response.get('number')
+                                if isinstance(block_number_raw, str):
+                                    block_number = int(block_number_raw, 16)
+                                else:
+                                    block_number = block_number_raw
                                 if self.new_block_callback_use_latest:
                                     block_hash = 'latest'
                                 new_block_callback(block_hash, block_number)
@@ -483,6 +486,12 @@ class Lifecycle:
                             break
                         except Exception as err:
                             self.logger.error(f"Lifecycle: Exception: {err}")
+                            msg = ""
+                            for t in traceback.format_tb(err.__traceback__):
+                                t = t.replace("\n", ":")
+                                t = t[:-1]
+                                msg += f"     {t}\n"
+                            self.logger.info(f"{msg}")
                             self.terminated_internally = True
                             break
                     self.logger.info(f"Lifecycle: subscribe newHeads finished.")
