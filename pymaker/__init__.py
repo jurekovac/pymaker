@@ -448,6 +448,8 @@ class Receipt:
                                                        to_address=Address('0x0000000000000000000000000000000000000000'),
                                                        value=Wad(event_data['args']['wad'])))
 
+        elif receipt.get('status', 0) == 1:
+            self.successful = True
         else:
             self.successful = False
 
@@ -586,10 +588,15 @@ class Transact:
         assert isinstance(nonce, int) or nonce is None
 
         nonce_dict = {'nonce': nonce} if nonce is not None else {}
+
         transaction_params = {**{'from': from_account, 'gas': gas},
                               **gas_price_params,
                               **nonce_dict,
                               **self._as_dict(self.extra)}
+
+        to_and_data = {'to': self.address.address}
+        if self.parameters and len(self.parameters) > 0:
+            to_and_data['data'] = self.parameters[0]
 
         if private_key:
             send_raw = True
@@ -600,25 +607,25 @@ class Transact:
         if self.contract is not None:
             if self.function_name is None:
                 if send_raw:
-                    prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **{'to': self.address.address, 'data': self.parameters[0]}})
+                    prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **to_and_data})
                     signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
                     return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
                 else:
-                    return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params, **{'to': self.address.address, 'data': self.parameters[0]}}))
+                    return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params, **to_and_data}))
             else:
                 if send_raw:
-                    prepared_transaction = self._contract_function().buildTransaction(transaction_params)
+                    prepared_transaction = self._contract_function().build_transaction(transaction_params)
                     signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
                     return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
                 else:
                     return bytes_to_hexstring(self._contract_function().transact(transaction_params))
         else:
             if send_raw:
-                prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **{'to': self.address.address, 'data': self.parameters[0]}})
+                prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **to_and_data})
                 signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
                 return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
             else:
-                return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params, **{'to': self.address.address}}))
+                return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params, **to_and_data}))
 
     def _contract_function(self):
         if '(' in self.function_name:
@@ -726,7 +733,7 @@ class Transact:
             estimate = self._contract_function().estimate_gas({**self._as_dict(self.extra), **{'from': from_address.address}}, block_identifier=block_identifier)
         else:
             tx_params = {**self._as_dict(self.extra), 'from': from_address.address, 'to': self.address.address}
-            if len(self.parameters) == 1:
+            if self.parameters and len(self.parameters) > 0:
                 tx_params['data'] = self.parameters[0]
             return self.web3.eth.estimate_gas(transaction=tx_params, block_identifier=block_identifier)
 
@@ -810,8 +817,14 @@ class Transact:
                     self.logger.warning(f"Transaction {self.name()} will fail, submitting anyway")
                     gas_estimate = Transact.gas_estimate_for_bad_txs
                 else:
-                    # self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({sys.exc_info()[1]})")
-                    self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({err})")
+                    self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({sys.exc_info()})")
+                    msg = "stacktrace: \n"
+                    for t in traceback.format_tb(err.__traceback__):
+                        t = t.replace("\n", ":")
+                        t = t[:-1]
+                        msg += f"     {t}\n"
+                    self.logger.warning(f"tb: {msg}")
+                    # self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({err})")
                     return None
         else:
             gas_estimate = None
