@@ -874,11 +874,10 @@ class Transact:
                                 # CAUTION: If original transaction is being replaced, this will print details of the
                                 # replacement transaction even if the receipt was generated from the original.
                                 self.logger.info(f"Transaction {self.name()} was successful (tx_hash={tx_hash})")
-                                return receipt
                             else:
                                 self.logger.warning(f"Transaction {self.name()} mined successfully but generated no single"
                                                     f" log entry, assuming it has failed (tx_hash={tx_hash})")
-                                return None
+                            return receipt
 
                     self.logger.debug(f"No receipt found in attempt #{attempt}/10 (nonce={self.nonce},"
                                       f" getTransactionCount={self.web3.eth.get_transaction_count(from_account)})")
