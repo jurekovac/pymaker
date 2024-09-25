@@ -109,6 +109,7 @@ class Lifecycle:
         self._at_least_one_every = False
         self._last_block_time = None
         self._on_block_callback = None
+        self._max_block_number = 0
 
     def __enter__(self):
         return self
@@ -373,11 +374,14 @@ class Lifecycle:
                     self.logger.info(f"Lifecycle: Ignoring block #{block_number} ({hash_str}), as the node is syncing")
                     return
 
-                max_block_number = None
+
                 if block_number:
-                    max_block_number = self.web3.eth.block_number
-                    if block_number < max_block_number:
-                        self.logger.debug(f"Lifecycle: Ignoring block #{block_number} ({hash_str}), as there is already block #{max_block_number} available")
+                    if block_number < self._max_block_number:
+                        self.logger.debug(f"Lifecycle: #1 Ignoring block #{block_number} ({hash_str}), as there is already block #{self._max_block_number} available")
+                        return
+                    self._max_block_number = self.web3.eth.block_number
+                    if block_number < self._max_block_number:
+                        self.logger.debug(f"Lifecycle: #2 Ignoring block #{block_number} ({hash_str}), as there is already block #{self._max_block_number} available")
                         return
 
                 if block_number is None or block_hash == 'latest':
@@ -385,10 +389,10 @@ class Lifecycle:
                     if block_hash == 'latest':
                         block_hash = block['hash']
                     block_number = block['number']
-                    max_block_number = self.web3.eth.block_number
+                    self._max_block_number = self.web3.eth.block_number
 
-                if block_number < max_block_number:
-                    self.logger.debug(f"Lifecycle: Ignoring block #{block_number} ({block_hash.hex()}), as there is already block #{max_block_number} available")
+                if block_number < self._max_block_number:
+                    self.logger.debug(f"Lifecycle: #3 Ignoring block #{block_number} ({block_hash.hex()}), as there is already block #{self._max_block_number} available")
                     return
 
                 def on_start():
