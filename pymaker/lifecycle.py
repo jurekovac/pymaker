@@ -206,8 +206,8 @@ class Lifecycle:
     def _wait_for_init(self):
         # In unit-tests waiting for the node to sync does not work correctly.
         # So we skip it.
-        if 'TestRPC' in self.web3.client_version:
-            return
+        # if 'TestRPC' in self.web3.client_version:
+        #     return
 
         # wait for the client to have at least one peer
         if not self.skip_peer_check:
@@ -360,55 +360,30 @@ class Lifecycle:
             self.terminated_externally = True
 
     def _start_watching_blocks(self):
-        def new_block_callback(block_hash, block_number=None):
+        def new_block_callback(block_data: dict):
+            self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
+            block_hash = block_data.get('hash')
+            if isinstance(block_hash, HexBytes):
+                block_hash = block_hash.hex()
+            block_number = block_data.get('number')
+            if isinstance(block_number, str):
+                block_number = int(block_number, 16)
+
             try:
-                self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
-
-                """ check node syncing """
-                if self.skip_syncing_check:
-                    is_syncing = False
-                else:
-                    is_syncing = self.web3.eth.syncing
-                hash_str = block_hash.hex() if isinstance(block_hash, HexBytes) else block_hash
-                if is_syncing:
-                    self.logger.info(f"Lifecycle: Ignoring block #{block_number} ({hash_str}), as the node is syncing")
-                    return
-
-
-                if block_number:
-                    if block_number < self._max_block_number:
-                        self.logger.debug(f"Lifecycle: #1 Ignoring block #{block_number} ({hash_str}), as there is already block #{self._max_block_number} available")
-                        return
-                    self._max_block_number = self.web3.eth.block_number
-                    if block_number < self._max_block_number:
-                        self.logger.debug(f"Lifecycle: #2 Ignoring block #{block_number} ({hash_str}), as there is already block #{self._max_block_number} available")
-                        return
-
-                if block_number is None or block_hash == 'latest':
-                    block = self.web3.eth.get_block(block_hash)
-                    if block_hash == 'latest':
-                        block_hash = block['hash']
-                    block_number = block['number']
-                    self._max_block_number = self.web3.eth.block_number
-
-                if block_number < self._max_block_number:
-                    self.logger.debug(f"Lifecycle: #3 Ignoring block #{block_number} ({block_hash.hex()}), as there is already block #{self._max_block_number} available")
-                    return
-
                 def on_start():
-                    self.logger.debug(f"Lifecycle: Processing block #{block_number} ({block_hash.hex()})")
+                    self.logger.debug(f"Lifecycle: Processing block #{block_number} ({block_hash})")
 
                 def on_finish():
-                    self.logger.debug(f"Lifecycle: Finished processing block #{block_number} ({block_hash.hex()})")
+                    self.logger.debug(f"Lifecycle: Finished processing block #{block_number} ({block_hash})")
 
                 if not self.terminated_internally and not self.terminated_externally and not self.fatal_termination:
-                    if not self._on_block_callback.trigger(on_start, on_finish, block_number):
-                        self.logger.debug(f"Lifecycle: Ignoring block #{block_number} ({block_hash.hex()}), as previous callback is still running")
-                    self._on_block_callback.wait()
+                    if not self._on_block_callback.trigger(on_start, on_finish, block_data):
+                        self.logger.debug(f"Lifecycle: Ignoring block #{block_number} ({block_hash}), as previous callback is still running")
+                        # self._on_block_callback.wait()
                 else:
                     self.logger.debug(f"Lifecycle: Ignoring block #{block_number} as keeper is already terminating")
             except Exception as err:
-                self.logger.warning(f"Lifecycle: Ignoring block #{block_number} ({block_hash.hex()}), as error: {err} occurred.")
+                self.logger.warning(f"Lifecycle: Ignoring block #{block_number} ({block_hash}), as error: {err} occurred.")
                 msg = ""
                 for t in traceback.format_tb(err.__traceback__):
                     t = t.replace("\n", ":")
@@ -425,10 +400,10 @@ class Lifecycle:
 
                 try:
                     for event in event_filter.get_new_entries():
-                        block_hash = event
-                        if self.new_block_callback_use_latest:
-                            block_hash = 'latest'
-                        new_block_callback(block_hash)
+                        block_hash = 'latest'
+                        new_block_callback({'hash': block_hash})
+                        # skip all other-older blocks and use latest
+                        break
                 except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
                     # print(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
                     self.logger.warning(f"Lifecycle: Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
@@ -473,15 +448,7 @@ class Lifecycle:
 
                         try:
                             async for response in w3ws.listen_to_websocket():
-                                block_hash = HexBytes(response.get('hash'))
-                                block_number_raw = response.get('number')
-                                if isinstance(block_number_raw, str):
-                                    block_number = int(block_number_raw, 16)
-                                else:
-                                    block_number = block_number_raw
-                                if self.new_block_callback_use_latest:
-                                    block_hash = 'latest'
-                                new_block_callback(block_hash, block_number)
+                                new_block_callback(dict(response))
                         except asyncio.exceptions.TimeoutError as err:
                             self.logger.warning(f"Lifecycle: timeout: {err}.")
                         except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
