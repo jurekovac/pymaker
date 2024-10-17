@@ -432,15 +432,31 @@ class Lifecycle:
                     return
 
                 self.logger.info(f"Lifecycle: connecting to: {endpoint_uri}")
-                async for w3ws in AsyncWeb3.persistent_websocket(WebsocketProviderV2(endpoint_uri, call_timeout=60)):
+                call_timeout = 60
+                async for w3ws in AsyncWeb3.persistent_websocket(WebsocketProviderV2(endpoint_uri, call_timeout=call_timeout, websocket_kwargs={"open_timeout": call_timeout, "close_timeout": call_timeout, "ping_timeout": call_timeout})):
                     if self.terminated_internally or self.terminated_externally:
                         self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally}")
                         break
-                    if not await w3ws.is_connected():
-                        self.logger.log(f"Lifecycle: connecting provider to {endpoint_uri}")
-                        await w3ws.provider.connect()
-                    subscription_id = await w3ws.eth.subscribe("newHeads")
-                    self.logger.info(f"Lifecycle: subscribed to newHeads. Subscription id: {subscription_id}")
+                    try:
+                        if not await asyncio.wait_for(w3ws.is_connected(), timeout=call_timeout):
+                            self.logger.info(f"Lifecycle: connecting provider to {endpoint_uri}")
+                            await w3ws.provider.connect()
+                        subscription_id = await w3ws.eth.subscribe("newHeads")
+                        self.logger.info(f"Lifecycle: subscribed to newHeads. Subscription id: {subscription_id}")
+                    except asyncio.exceptions.TimeoutError as err:
+                        self.logger.error(f"Lifecycle: timeout reached: {endpoint_uri}.")
+                        time.sleep(0.5)
+                        break
+                    except Exception as err:
+                        self.logger.error(f"Lifecycle: Exception: {err}")
+                        msg = ""
+                        for t in traceback.format_tb(err.__traceback__):
+                            t = t.replace("\n", ":")
+                            t = t[:-1]
+                            msg += f"     {t}\n"
+                        self.logger.info(f"{msg}")
+                        self.terminated_internally = True
+
                     while True:
                         if self.terminated_internally or self.terminated_externally:
                             self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally}")
