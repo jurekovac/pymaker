@@ -440,7 +440,8 @@ class Lifecycle:
                     try:
                         if not await asyncio.wait_for(w3ws.is_connected(), timeout=call_timeout):
                             self.logger.info(f"Lifecycle: connecting provider to {endpoint_uri}")
-                            await w3ws.provider.connect()
+                            await asyncio.wait_for(w3ws.provider.connect(), timeout=call_timeout)
+                        self.logger.info(f"Lifecycle: subscribing newHeads")
                         subscription_id = await w3ws.eth.subscribe("newHeads")
                         self.logger.info(f"Lifecycle: subscribed to newHeads. Subscription id: {subscription_id}")
                     except asyncio.exceptions.TimeoutError as err:
