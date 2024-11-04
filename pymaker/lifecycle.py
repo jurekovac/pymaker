@@ -445,9 +445,9 @@ class Lifecycle:
                         subscription_id = await w3ws.eth.subscribe("newHeads")
                         self.logger.info(f"Lifecycle: subscribed to newHeads. Subscription id: {subscription_id}")
                     except asyncio.exceptions.TimeoutError as err:
-                        self.logger.error(f"Lifecycle: timeout reached: {endpoint_uri}.")
+                        self.logger.error(f"Lifecycle: timeout reached: {endpoint_uri}. Retry.")
                         time.sleep(0.5)
-                        break
+                        continue
                     except Exception as err:
                         self.logger.error(f"Lifecycle: Exception: {err}")
                         msg = ""
@@ -457,6 +457,7 @@ class Lifecycle:
                             msg += f"     {t}\n"
                         self.logger.info(f"{msg}")
                         self.terminated_internally = True
+                        continue
 
                     while True:
                         if self.terminated_internally or self.terminated_externally:
@@ -467,7 +468,7 @@ class Lifecycle:
                             async for response in w3ws.listen_to_websocket():
                                 new_block_callback(dict(response))
                         except asyncio.exceptions.TimeoutError as err:
-                            self.logger.warning(f"Lifecycle: timeout: {err}.")
+                            self.logger.warning(f"Lifecycle: timeout reached")
                         except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
                             self.logger.warning(f"Lifecycle: Node dropped event emitter; resubscribing: {type(ex)}: {ex}")
                             time.sleep(0.5)
