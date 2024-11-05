@@ -17,20 +17,18 @@
 
 import datetime
 import logging
-import signal
 import threading
 import time
 import traceback
-import json
 import asyncio
 
 import pytz
 from pymaker.sign import eth_sign
 from web3 import Web3, AsyncWeb3, WebsocketProviderV2
 from web3.exceptions import BlockNotFound, BlockNumberOutofRange
-from web3.types import HexBytes
-
-from websockets import connect
+from web3.types import HexBytes, HexStr
+from web3.method import Method
+from web3._utils.method_formatters import (type_aware_apply_formatters_to_dict, to_integer_if_hex, apply_formatter_if, is_not_null, to_hexbytes, to_checksum_address, is_string, RPC)
 
 from pymaker import register_filter_thread, any_filter_thread_present, stop_all_filter_threads, all_filter_threads_alive
 from pymaker.util import AsyncCallback
@@ -442,14 +440,53 @@ class Lifecycle:
                             self.logger.info(f"Lifecycle: connecting provider to {endpoint_uri}")
                             await asyncio.wait_for(w3ws.provider.connect(), timeout=call_timeout)
                         self.logger.info(f"Lifecycle: subscribing newHeads")
-                        subscription_id = await w3ws.eth.subscribe("newHeads")
+
+                        """ 
+                        override default subscription_formatters method (web3._utils.method_formatters), 
+                        as it fails to correctly identify new blocks as blocks and parses them incorrectly.
+                       
+                        Default: 
+                        subscription_id = await w3ws.eth._subscribe("newHeads")
+                        """
+
+                        def get_formatters(method_name, module):
+                            block_formatters = {
+                                "baseFeePerGas": to_integer_if_hex,
+                                "gasLimit": to_integer_if_hex,
+                                "gasUsed": to_integer_if_hex,
+                                "size": to_integer_if_hex,
+                                "timestamp": to_integer_if_hex,
+                                "hash": apply_formatter_if(is_not_null, to_hexbytes(32)),
+                                "miner": apply_formatter_if(is_not_null, to_checksum_address),
+                                "mixHash": apply_formatter_if(is_not_null, to_hexbytes(32)),
+                                "number": apply_formatter_if(is_not_null, to_integer_if_hex),
+                                "parentHash": apply_formatter_if(is_not_null, to_hexbytes(32)),
+                                "difficulty": to_integer_if_hex,
+                                "totalDifficulty": to_integer_if_hex,
+                            }
+
+                            def subscription_formatter(value):
+                                if is_string(value):
+                                    if len(value.replace("0x", "")) == 64:
+                                        return HexBytes(value)
+
+                                    # subscription id from the original subscription request
+                                    return HexStr(value)
+
+                                output = type_aware_apply_formatters_to_dict(block_formatters, value)
+                                return output
+                            return subscription_formatter
+
+                        subscribe_method = Method(RPC.eth_subscribe, result_formatters=get_formatters, is_property=False).__get__(w3ws.eth)
+                        subscription_id = await subscribe_method("newHeads")
+
                         self.logger.info(f"Lifecycle: subscribed to newHeads. Subscription id: {subscription_id}")
                     except asyncio.exceptions.TimeoutError as err:
                         self.logger.error(f"Lifecycle: timeout reached: {endpoint_uri}. Retry.")
                         time.sleep(0.5)
                         continue
                     except Exception as err:
-                        self.logger.error(f"Lifecycle: Exception: {err}")
+                        self.logger.error(f"Lifecycle: EXCEPTION: {err}")
                         msg = ""
                         for t in traceback.format_tb(err.__traceback__):
                             t = t.replace("\n", ":")
