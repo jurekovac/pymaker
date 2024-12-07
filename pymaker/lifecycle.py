@@ -431,7 +431,7 @@ class Lifecycle:
 
                 self.logger.info(f"Lifecycle: connecting to: {endpoint_uri}")
                 call_timeout = 60
-                async for w3ws in AsyncWeb3.persistent_websocket(WebsocketProviderV2(endpoint_uri, call_timeout=call_timeout, websocket_kwargs={"open_timeout": call_timeout, "close_timeout": call_timeout, "ping_timeout": call_timeout})):
+                async for w3ws in AsyncWeb3.persistent_websocket(WebsocketProviderV2(endpoint_uri, request_timeout=call_timeout, websocket_kwargs={"open_timeout": call_timeout, "close_timeout": call_timeout, "ping_timeout": call_timeout})):
                     if self.terminated_internally or self.terminated_externally:
                         self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally}")
                         break
@@ -441,11 +441,11 @@ class Lifecycle:
                             await asyncio.wait_for(w3ws.provider.connect(), timeout=call_timeout)
                         self.logger.info(f"Lifecycle: subscribing newHeads")
 
-                        """ 
+                        """
                         override default subscription_formatters method (web3._utils.method_formatters), 
                         as it fails to correctly identify new blocks as blocks and parses them incorrectly.
-                       
-                        Default: 
+
+                        Default:
                         subscription_id = await w3ws.eth._subscribe("newHeads")
                         """
 
@@ -502,8 +502,12 @@ class Lifecycle:
                             break
 
                         try:
-                            async for response in w3ws.listen_to_websocket():
-                                new_block_callback(dict(response))
+                            async for response in w3ws.ws.process_subscriptions():
+                                subscription = response.get('subscription')
+                                if subscription != subscription_id:
+                                    self.logger.warning(f"Lifecycle: invalid subscription id received: {subscription} while subscribed to: {subscription_id}")
+                                    continue
+                                new_block_callback(dict(response.get('result')))
                         except asyncio.exceptions.TimeoutError as err:
                             self.logger.warning(f"Lifecycle: timeout reached")
                         except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
