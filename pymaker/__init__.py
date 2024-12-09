@@ -25,9 +25,8 @@ import time
 import traceback
 from enum import Enum, auto
 from functools import total_ordering, wraps
-from pprint import pprint
 from threading import Lock
-from typing import Optional, Union
+from typing import Optional, Union, Sequence, Any, Tuple
 from weakref import WeakKeyDictionary
 
 import eth_utils
@@ -35,11 +34,12 @@ import pkg_resources
 from hexbytes import HexBytes
 
 from web3 import HTTPProvider, Web3
-from web3._utils.contracts import get_function_info, encode_abi
+from eth_typing import ABI, ABIFunction, HexStr
+from web3._utils.contracts import encode_abi
 from web3._utils.events import get_event_data
 from web3._utils.transactions import fill_transaction_defaults
-from web3.exceptions import TransactionNotFound
-from web3.middleware import geth_poa_middleware
+from web3.utils.abi import get_abi_element_info
+from web3.middleware import ExtraDataToPOAMiddleware
 from web3.exceptions import LogTopicError, TransactionNotFound
 
 from eth_abi.codec import ABICodec
@@ -71,9 +71,28 @@ def web3_via_http(endpoint_uri: str, timeout=60, http_pool_size=20):
 
     web3 = Web3(HTTPProvider(endpoint_uri=endpoint_uri, request_kwargs={"timeout": timeout}, session=session))
     if web3.net.version == "5":  # goerli
-        web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+        web3.middleware_onion.inject(ExtraDataToPOAMiddleware, layer=0)
     return web3
 
+def get_function_info(fn_name: str,
+    abi_codec: ABICodec,
+    contract_abi: Optional[ABI] = None,
+    args: Optional[Sequence[Any]] = None,
+    kwargs: Optional[Any] = None,
+) -> Tuple[ABIFunction, HexStr, Tuple[Any, ...]]:
+
+    fn_info = get_abi_element_info(
+        contract_abi,
+        fn_name,
+        *args,
+        abi_codec=abi_codec,
+        **kwargs,
+    )
+    info_abi = fn_info["abi"]
+    info_selector = fn_info["selector"]
+    info_arguments = fn_info["arguments"]
+
+    return info_abi, info_selector, info_arguments
 
 class NonceCalculation(Enum):
     TX_COUNT = auto()
@@ -327,7 +346,7 @@ class Calldata:
         fn_args_type = [{"type": type} for type in fn_split[1:] if type]
 
         fn_abi = {"type": "function", "name": fn_name, "inputs": fn_args_type}
-        fn_abi, fn_selector, fn_arguments = get_function_info("test", abi_codec=web3.codec, fn_abi=fn_abi, args=fn_args)
+        fn_abi, fn_selector, fn_arguments = get_function_info("test", abi_codec=web3.codec, contract_abi=fn_abi, args=fn_args)
 
         calldata = encode_abi(web3, fn_abi, fn_arguments, fn_selector)
 

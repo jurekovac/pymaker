@@ -24,8 +24,9 @@ import asyncio
 
 import pytz
 from pymaker.sign import eth_sign
-from web3 import Web3, AsyncWeb3, WebsocketProviderV2
-from web3.exceptions import BlockNotFound, BlockNumberOutofRange
+from web3 import Web3, AsyncWeb3
+from web3.providers.persistent import WebSocketProvider
+from web3.exceptions import BlockNotFound, BlockNumberOutOfRange
 from web3.types import HexBytes, HexStr
 from web3.method import Method
 from web3._utils.method_formatters import (type_aware_apply_formatters_to_dict, to_integer_if_hex, apply_formatter_if, is_not_null, to_hexbytes, to_checksum_address, is_string, RPC)
@@ -402,7 +403,7 @@ class Lifecycle:
                         new_block_callback({'hash': block_hash})
                         # skip all other-older blocks and use latest
                         break
-                except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
+                except (BlockNotFound, BlockNumberOutOfRange, ValueError) as ex:
                     # print(f"Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
                     self.logger.warning(f"Lifecycle: Node dropped event emitter; recreating latest block filter: {type(ex)}: {ex}")
                     event_filter = self.web3.eth.filter('latest')
@@ -431,7 +432,7 @@ class Lifecycle:
 
                 self.logger.info(f"Lifecycle: connecting to: {endpoint_uri}")
                 call_timeout = 60
-                async for w3ws in AsyncWeb3.persistent_websocket(WebsocketProviderV2(endpoint_uri, request_timeout=call_timeout, websocket_kwargs={"open_timeout": call_timeout, "close_timeout": call_timeout, "ping_timeout": call_timeout})):
+                async for w3ws in AsyncWeb3(WebSocketProvider(endpoint_uri, request_timeout=call_timeout, websocket_kwargs={"open_timeout": call_timeout, "close_timeout": call_timeout, "ping_timeout": call_timeout})):
                     if self.terminated_internally or self.terminated_externally:
                         self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally}")
                         break
@@ -502,7 +503,7 @@ class Lifecycle:
                             break
 
                         try:
-                            async for response in w3ws.ws.process_subscriptions():
+                            async for response in w3ws.socket.process_subscriptions():
                                 subscription = response.get('subscription')
                                 if subscription != subscription_id:
                                     self.logger.warning(f"Lifecycle: invalid subscription id received: {subscription} while subscribed to: {subscription_id}")
@@ -510,7 +511,7 @@ class Lifecycle:
                                 new_block_callback(dict(response.get('result')))
                         except asyncio.exceptions.TimeoutError as err:
                             self.logger.warning(f"Lifecycle: timeout reached")
-                        except (BlockNotFound, BlockNumberOutofRange, ValueError) as ex:
+                        except (BlockNotFound, BlockNumberOutOfRange, ValueError) as ex:
                             self.logger.warning(f"Lifecycle: Node dropped event emitter; resubscribing: {type(ex)}: {ex}")
                             time.sleep(0.5)
                             break

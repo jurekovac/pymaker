@@ -20,7 +20,7 @@ from typing import Optional
 
 from eth_account import Account
 from web3 import Web3
-from web3.middleware import construct_sign_and_send_raw_middleware
+from web3.middleware import SignAndSendRawMiddlewareBuilder
 
 from pymaker import Address, _registered_accounts
 
@@ -84,4 +84,4 @@ def register_private_key(web3: Web3, private_key):
     account = Account.from_key(private_key)
 
     _registered_accounts[(web3, Address(account.address))] = account
-    web3.middleware_onion.add(construct_sign_and_send_raw_middleware(account))
+    web3.middleware_onion.add(SignAndSendRawMiddlewareBuilder.build(account))
