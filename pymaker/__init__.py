@@ -628,21 +628,21 @@ class Transact:
                 if send_raw:
                     prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **to_and_data})
                     signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
-                    return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
+                    return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.raw_transaction))
                 else:
                     return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params, **to_and_data}))
             else:
                 if send_raw:
                     prepared_transaction = self._contract_function().build_transaction(transaction_params)
                     signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
-                    return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
+                    return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.raw_transaction))
                 else:
                     return bytes_to_hexstring(self._contract_function().transact(transaction_params))
         else:
             if send_raw:
                 prepared_transaction = fill_transaction_defaults(self.web3, {**transaction_params, **to_and_data})
                 signed_txn = self.web3.eth.account.sign_transaction(prepared_transaction, private_key)
-                return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.rawTransaction))
+                return bytes_to_hexstring(self.web3.eth.send_raw_transaction(signed_txn.raw_transaction))
             else:
                 return bytes_to_hexstring(self.web3.eth.send_transaction({**transaction_params, **to_and_data}))
 
