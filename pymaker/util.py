@@ -48,7 +48,7 @@ def synchronize(futures) -> list:
     if len(futures) > 0:
         loop = asyncio.new_event_loop()
         try:
-            return loop.run_until_complete(asyncio.gather(*futures, loop=loop))
+            return loop.run_until_complete(asyncio.gather(*futures))
         finally:
             loop.close()
     else:
