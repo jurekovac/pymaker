@@ -945,7 +945,8 @@ class Transact:
         out = {
             'to': invocation.address.address,
             'data': invocation.calldata.value,
-            'name': self.name()
+            'name': self.name(),
+            'value': 0 if self.extra is None else self.extra.get('value', 0)
             }
         return out
 
