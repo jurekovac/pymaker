@@ -140,7 +140,7 @@ class FixedGasPrice(GasStrategy):
         assert isinstance(gas_price, int) or gas_price is None
         assert isinstance(max_fee, int) or max_fee is None
         assert isinstance(tip, int) or tip is None
-        assert gas_price or (max_fee and tip)
+        assert (gas_price is not None) or (max_fee and tip)
         self.gas_price = gas_price
         self.max_fee = max_fee
         self.tip = tip
