@@ -17,7 +17,7 @@
 
 import operator
 from functools import reduce
-from typing import List
+from typing import List, Optional
 
 from web3 import Web3
 
@@ -80,12 +80,13 @@ class TxManager(Contract):
     def owner(self) -> Address:
         return Address(self._contract.functions.owner().call())
 
-    def execute(self, tokens: List[Address], invocations: List[Invocation]) -> Transact:
+    def execute(self, tokens: List[Address], invocations: List[Invocation], invocation_description: Optional[str] = None) -> Transact:
         """Executes multiple contract methods in one Ethereum transaction.
 
         Args:
             tokens: List of addresses of ERC20 token the invocations should be able to access.
             invocations: A list of invocations (contract methods) to be executed.
+            invocation_description: a description of invocation transaction(s) to display in logs
 
         Returns:
             A :py:class:`pymaker.Transact` instance, which can be used to trigger the transaction.
@@ -104,8 +105,9 @@ class TxManager(Contract):
 
         assert(isinstance(tokens, list))
         assert(isinstance(invocations, list))
+        assert(isinstance(invocation_description, str) or invocation_description is None)
 
-        return Transact(self, self.web3, self.abi, self.address, self._contract, 'execute', [token_addresses(), script()])
+        return Transact(self, self.web3, self.abi, self.address, self._contract, 'execute', [token_addresses(), script()], name=f"execute: {invocation_description}")
 
     def __repr__(self):
         return f"TxManager('{self.address}')"
