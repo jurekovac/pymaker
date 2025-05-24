@@ -577,7 +577,7 @@ class Transact:
 
         if supports_eip1559 and gas_feecap and gas_tip:  # prefer type 2 TXes
             params = {'maxFeePerGas': gas_feecap, 'maxPriorityFeePerGas': gas_tip}
-        elif gas_price:  # fallback to type 0 if not supported or params not specified
+        elif gas_price is not None:  # fallback to type 0 if not supported or params not specified
             params = {'gasPrice': gas_price}
         else:            # let the node determine gas
             params = {}
