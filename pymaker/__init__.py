@@ -758,6 +758,29 @@ class Transact:
 
         return estimate
 
+    def simulate(self, from_address: Address, block_identifier: Union[int, str] = None) -> HexBytes:
+        """Return an estimated amount of gas which will get consumed by this Ethereum transaction.
+
+        May throw an exception if the actual transaction will fail as well.
+
+        Args:
+            from_address: Address to simulate sending the transaction from.
+
+        Returns:
+            Amount of gas as an integer.
+        """
+        assert(isinstance(from_address, Address))
+
+        if self.contract and self.function_name:
+            result = self._contract_function().call({**self._as_dict(self.extra), **{'from': from_address.address}}, block_identifier=block_identifier)
+        else:
+            tx_params = {**self._as_dict(self.extra), 'from': from_address.address, 'to': self.address.address}
+            if self.parameters and len(self.parameters) > 0:
+                tx_params['data'] = self.parameters[0]
+            return self.web3.eth.call(transaction=tx_params, block_identifier=block_identifier)
+
+        return result
+
     def transact(self, **kwargs) -> Optional[Receipt]:
         """Executes the Ethereum transaction synchronously.
 
