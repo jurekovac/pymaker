@@ -131,12 +131,16 @@ def _get_endpoint_behavior(web3: Web3, use_pending_block: bool = True) -> Endpoi
     assert isinstance(use_pending_block, bool)
     global endpoint_behavior
     if web3 not in endpoint_behavior:
+        try:
+            web3_client_version = web3.client_version.lower()
+        except Exception:
+            web3_client_version = 'unknown'
 
         # Determine nonce calculation
         providers_without_nonce_calculation = ['alchemy', 'infura', 'quiknode']
         requires_serial_nonce = any(provider in web3.manager.provider.endpoint_uri for provider in
                                     providers_without_nonce_calculation)
-        is_parity = "parity" in web3.client_version.lower() or "openethereum" in web3.client_version.lower()
+        is_parity = "parity" in web3_client_version or "openethereum" in web3_client_version
         if requires_serial_nonce:
             nonce_calc = NonceCalculation.SERIAL
         elif is_parity:
@@ -149,7 +153,7 @@ def _get_endpoint_behavior(web3: Web3, use_pending_block: bool = True) -> Endpoi
 
         behavior = EndpointBehavior(nonce_calc, supports_london)
         endpoint_behavior[web3] = behavior
-        logger.debug(f"node clientVersion={web3.client_version}, will use {behavior}")
+        logger.debug(f"node clientVersion={web3_client_version}, will use {behavior}")
     return endpoint_behavior[web3]
 
 
@@ -573,7 +577,7 @@ class Transact:
 
         if supports_eip1559 and gas_feecap and gas_tip:  # prefer type 2 TXes
             params = {'maxFeePerGas': gas_feecap, 'maxPriorityFeePerGas': gas_tip}
-        elif gas_price:  # fallback to type 0 if not supported or params not specified
+        elif gas_price is not None:  # fallback to type 0 if not supported or params not specified
             params = {'gasPrice': gas_price}
         else:            # let the node determine gas
             params = {}
