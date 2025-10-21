@@ -864,12 +864,12 @@ class Transact:
                     gas_estimate = Transact.gas_estimate_for_bad_txs
                 else:
                     self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({sys.exc_info()})")
-                    msg = "stacktrace: \n"
-                    for t in traceback.format_tb(err.__traceback__):
-                        t = t.replace("\n", ":")
-                        t = t[:-1]
-                        msg += f"     {t}\n"
-                    self.logger.warning(f"tb: {msg}")
+                    # msg = "stacktrace: \n"
+                    # for t in traceback.format_tb(err.__traceback__):
+                    #     t = t.replace("\n", ":")
+                    #     t = t[:-1]
+                    #     msg += f"     {t}\n"
+                    # self.logger.warning(f"tb: {msg}")
                     # self.logger.warning(f"Transaction {self.name()} will fail, refusing to send ({err})")
                     return None
         else:
