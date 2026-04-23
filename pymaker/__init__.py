@@ -30,7 +30,8 @@ from typing import Optional, Union, Sequence, Any, Tuple
 from weakref import WeakKeyDictionary
 
 import eth_utils
-import pkg_resources
+# import pkg_resources
+import importlib
 from hexbytes import HexBytes
 
 from web3 import HTTPProvider, Web3
@@ -311,11 +312,16 @@ class Contract:
 
     @staticmethod
     def _load_abi(package, resource) -> list:
-        return json.loads(pkg_resources.resource_string(package, resource))
+        # return json.loads(pkg_resources.resource_string(package, resource))
+        # read_text() reads the file content as a string
+        content = importlib.resources.files(package).joinpath(resource).read_text(encoding="utf-8")
+        return json.loads(content)
 
     @staticmethod
     def _load_bin(package, resource) -> str:
-        return str(pkg_resources.resource_string(package, resource), "utf-8")
+        # return str(pkg_resources.resource_string(package, resource), "utf-8")
+        # Directly read as text to replace the binary - to - string conversion
+        return importlib.resources.files(package).joinpath(resource).read_text(encoding="utf-8")
 
 
 class Calldata:
