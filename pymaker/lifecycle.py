@@ -109,6 +109,10 @@ class Lifecycle:
         self._last_block_time = None
         self._on_block_callback = None
         self._max_block_number = 0
+        # These are updated for every newHeads notification, irrespective of
+        # whether AsyncCallback later skips the keeper's block callback.
+        self._last_subscribed_block_number = None
+        self._last_subscribed_block_hash = None
 
     def __enter__(self):
         return self
@@ -359,16 +363,38 @@ class Lifecycle:
             self.terminated_externally = True
 
     def _start_watching_blocks(self):
-        def new_block_callback(block_data: dict):
+        def new_block_callback(block_data: dict, detect_reorg: bool = False):
             self._last_block_time = datetime.datetime.now(tz=pytz.UTC)
             block_hash = block_data.get('hash')
+            parent_hash = block_data.get('parentHash')
             if isinstance(block_hash, HexBytes):
                 block_hash = block_hash.hex()
+            if isinstance(parent_hash, HexBytes):
+                parent_hash = parent_hash.hex()
             block_number = block_data.get('number')
             if isinstance(block_number, str):
                 block_number = int(block_number, 16)
 
             try:
+                if detect_reorg and isinstance(block_number, int) and block_hash is not None:
+                    if self._last_subscribed_block_number is not None:
+                        if (block_number == self._last_subscribed_block_number + 1
+                                and parent_hash is not None
+                                and parent_hash != self._last_subscribed_block_hash):
+
+                            self.logger.warning(f"Lifecycle: REORG DETECTED: previous_number={self._last_subscribed_block_number}, "
+                                                f"previous_hash={self._last_subscribed_block_hash}, current_number={block_number}, "
+                                                f"current_hash={block_hash}, parent_hash={parent_hash}")
+
+                        elif (block_number == self._last_subscribed_block_number
+                              and block_hash != self._last_subscribed_block_hash):
+
+                            self.logger.warning(f"Lifecycle: REORG DETECTED: replacement head at block #{block_number}: "
+                                                f"previous_hash={self._last_subscribed_block_hash}, current_hash={block_hash}")
+
+                self._last_subscribed_block_number = block_number
+                self._last_subscribed_block_hash = block_hash
+
                 def on_start():
                     self.logger.debug(f"Lifecycle: Processing block #{block_number} ({block_hash})")
 
@@ -508,7 +534,7 @@ class Lifecycle:
                                 if subscription != subscription_id:
                                     self.logger.warning(f"Lifecycle: invalid subscription id received: {subscription} while subscribed to: {subscription_id}")
                                     continue
-                                new_block_callback(dict(response.get('result')))
+                                new_block_callback(dict(response.get('result')), detect_reorg=True)
                         except asyncio.exceptions.TimeoutError as err:
                             self.logger.warning(f"Lifecycle: timeout reached")
                         except (BlockNotFound, BlockNumberOutOfRange, ValueError) as ex:
