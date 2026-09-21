@@ -420,7 +420,7 @@ class Lifecycle:
             event_filter = self.web3.eth.filter('latest')
             self.logger.debug(f"Lifecycle: Created event filter: {event_filter}")
             while True:
-                if self.terminated_internally or self.terminated_externally:
+                if self.terminated_internally or self.terminated_externally or self.fatal_termination:
                     break
 
                 try:
@@ -459,7 +459,7 @@ class Lifecycle:
                 self.logger.info(f"Lifecycle: connecting to: {endpoint_uri}")
                 call_timeout = 60
                 async for w3ws in AsyncWeb3(WebSocketProvider(endpoint_uri, request_timeout=call_timeout, websocket_kwargs={"open_timeout": call_timeout, "close_timeout": call_timeout, "ping_timeout": call_timeout})):
-                    if self.terminated_internally or self.terminated_externally:
+                    if self.terminated_internally or self.terminated_externally or self.fatal_termination:
                         self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally}")
                         break
                     try:
@@ -524,16 +524,20 @@ class Lifecycle:
                         continue
 
                     while True:
-                        if self.terminated_internally or self.terminated_externally:
-                            self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally}")
+                        if self.terminated_internally or self.terminated_externally or self.fatal_termination:
+                            self.logger.warning(f"Lifecycle: terminated internally: {self.terminated_internally} or externally: {self.terminated_externally} or fatal: {self.fatal_termination}")
                             break
 
                         try:
                             async for response in w3ws.socket.process_subscriptions():
+                                if self.terminated_internally or self.terminated_externally or self.fatal_termination:
+                                    continue
+
                                 subscription = response.get('subscription')
                                 if subscription != subscription_id:
                                     self.logger.warning(f"Lifecycle: invalid subscription id received: {subscription} while subscribed to: {subscription_id}")
                                     continue
+
                                 new_block_callback(dict(response.get('result')), detect_reorg=True)
                         except asyncio.exceptions.TimeoutError as err:
                             self.logger.warning(f"Lifecycle: timeout reached")
@@ -696,7 +700,7 @@ class Lifecycle:
             #
             # TODO the same thing could possibly happen if we watch any event other than
             # TODO a new block. if that happens, we have no reliable way of detecting it now.
-            if self._last_block_time and (datetime.datetime.now(tz=pytz.UTC) - self._last_block_time).total_seconds() > 300:
+            if self._last_block_time and (datetime.datetime.now(tz=pytz.UTC) - self._last_block_time).total_seconds() > 60:
                 if self.skip_syncing_check:
                     is_syncing = False
                 else:
