@@ -55,8 +55,17 @@ _registered_accounts = {}
 filter_threads = []
 endpoint_behavior = WeakKeyDictionary()
 next_nonce = {}
-transaction_lock = Lock()
+# one lock per sending account: transactions of one account must not choose the same nonce, transactions of different
+# accounts have independent nonces and may be sent in parallel
+transaction_locks = {}
+transaction_locks_guard = Lock()
 logger = logging.getLogger()
+
+
+def _transaction_lock(from_account: str) -> Lock:
+    """Return the lock of from_account, created on first use."""
+    with transaction_locks_guard:
+        return transaction_locks.setdefault(from_account.lower(), Lock())
 
 
 def web3_via_http(endpoint_uri: str, timeout=60, http_pool_size=20):
@@ -675,15 +684,16 @@ class Transact:
         assert isinstance(gas_fees, dict)           # gas fee parameters
         assert isinstance(block_identifier, str) and block_identifier in ['pending', 'latest']  # use block_identifier pending (or latest)
 
-        # We need the lock in order to not try to send two transactions with the same nonce.
+        # We need the lock in order to not try to send two transactions of this account with the same nonce.
+        transaction_lock = _transaction_lock(from_account)
         transaction_lock.acquire()
         # self.logger.debug(f"lock {id(transaction_lock)} acquired")
 
-        if from_account not in next_nonce:
-            # logging.debug(f"Initializing nonce for {from_account}")
-            next_nonce[from_account] = self.web3.eth.get_transaction_count(from_account, block_identifier=block_identifier)
-
         try:
+            if from_account not in next_nonce:
+                # logging.debug(f"Initializing nonce for {from_account}")
+                next_nonce[from_account] = self.web3.eth.get_transaction_count(from_account, block_identifier=block_identifier)
+
             if self.nonce is None:
                 nonce_calc = _get_endpoint_behavior(self.web3).nonce_calc
                 if nonce_calc == NonceCalculation.PARITY_NEXTNONCE:
